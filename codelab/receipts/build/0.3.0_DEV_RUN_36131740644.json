@@ -1,0 +1,46 @@
+{
+  "object": "SIGMA_CODE_LAB_0.3.0_DEV",
+  "state": "FROZEN_TESTED_CI / DEVICE_CANDIDATE / REAL_DEVICE_VALIDATION_PENDING",
+  "branch": "sigma/coding-workspace-v0.3.0-dev",
+  "commit": "2118cc9f389045ea3548c87e6539a3472b41ec55",
+  "github_actions_run": 36131740644,
+  "package": "org.sigma.codelab.dev",
+  "versionName": "0.3.0-dev",
+  "versionCode": 4,
+  "features": [
+    "SIGMA Script 0.2 native engine preserved",
+    "optional local JavaScript/WebView backend",
+    "SYSTEM/LIGHT/DARK persistent theme selector",
+    "separate SIGMA and JavaScript draft buffers",
+    "JavaScript console.log output capture",
+    "WebView provider package/version reporting",
+    "5 s JavaScript watchdog with renderer termination attempt",
+    "network loads blocked",
+    "file/content access disabled",
+    "external navigation blocked",
+    "no JavascriptInterface bridge"
+  ],
+  "validation": {
+    "sigma_jvm_tests": "37/37 PASS",
+    "manifest_audit": "PASS",
+    "source_audit": "PASS",
+    "ui_audit": "PASS",
+    "android_build": "PASS",
+    "declared_permissions": [],
+    "apk_signature": "APK Signature Scheme v2 PASS / development identity",
+    "apk_sha256": "16ff8a5d5a2bd90d5d84ed7104c610176d31c2121d1093c7bd866cfd4cce8267",
+    "artifact_zip_sha256": "58abc86d02759d63d7062c36646b55083a955fe580bb2a5fba8c6f2b16fb5ef6"
+  },
+  "known_history": [
+    "initial 0.3.0 audit failure was a false positive on the UI label 'WebView'",
+    "second 0.3.0 compile failure localized to Java effectively-final capture rule",
+    "both failures corrected before successful run 36131740644"
+  ],
+  "boundaries": [
+    "WEBVIEW_JAVASCRIPT_MODE != UNIVERSAL_SANDBOX_PROOF",
+    "SYSTEM_WEBVIEW_PROVIDER != HARD_CODED_ENGINE_IDENTITY",
+    "NO_ANDROID_INTERNET_PERMISSION_AND_BLOCK_NETWORK_LOADS != PROOF_OF_ALL_SIDE_CHANNEL_ABSENCE",
+    "DEVELOPMENT_SIGNATURE != STABLE_UPDATE_SIGNATURE",
+    "0.3.0_DEV_DEVICE_EXECUTION_PENDING"
+  ]
+}
