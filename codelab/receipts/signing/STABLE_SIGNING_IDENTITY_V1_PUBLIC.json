@@ -1,0 +1,23 @@
+{
+  "object": "SIGMA_CODE_LAB_ANDROID_STABLE_SIGNING_IDENTITY_V1",
+  "state": "PRIVATE_KEY_CREATED_OFF_REPOSITORY / PUBLIC_CERTIFICATE_IDENTITY_FROZEN / GITHUB_SECRETS_PENDING",
+  "certificate_subject": "CN=SIGMA Code Lab, OU=Public Benefit Software, O=SIGMA, C=IT",
+  "certificate_valid_from": "2026-09-25T11:17:50Z",
+  "certificate_valid_until": "2054-02-10T11:17:50Z",
+  "certificate_sha256": "5A:A7:93:D3:2E:25:99:DB:52:C6:2A:47:98:5B:7D:1B:F3:02:1D:7B:C2:A2:C5:D3:A9:19:D5:81:85:95:65:86",
+  "keystore_sha256": "3125605199f8ebf884447b9b3b6d6306b39399b805ae069e4afe61a204200260",
+  "backup_zip_sha256": "b17c72db7210d850f65fe613be81dc7462936ff44cb0dd40235451c296299002",
+  "github_secret_names": [
+    "CODELAB_KEYSTORE_B64",
+    "CODELAB_KEYSTORE_PASSWORD",
+    "CODELAB_KEY_ALIAS",
+    "CODELAB_KEY_PASSWORD"
+  ],
+  "private_key_in_repository": false,
+  "stable_signed_build_workflow": ".github/workflows/codelab-stable-signed-build.yml",
+  "boundaries": [
+    "KEY_CREATED != GITHUB_SECRET_CONFIGURED",
+    "PUBLIC_CERTIFICATE_FINGERPRINT != PRIVATE_KEY_MATERIAL",
+    "STABLE_SIGNING_LINEAGE_STARTS_ONLY_WITH_FIRST_RELEASE_SIGNED_BY_THIS_IDENTITY"
+  ]
+}
