@@ -1,0 +1,157 @@
+name: Publish SIGMA Code Lab
+
+on:
+  push:
+    branches:
+      - sigma/coding-workspace-v0.1
+    paths:
+      - ".github/workflows/codelab-publish.yml"
+      - "codelab/release/RELEASE.json"
+      - "codelab/release/RELEASE_NOTES.md"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  verify-and-publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read release gate
+        id: release
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          d=json.load(open("codelab/release/RELEASE.json", encoding="utf-8"))
+          print("publish=" + ("true" if d.get("publish") else "false"))
+          print("tag=" + d["tag"])
+          print("title=" + d["title"])
+          print("version=" + d["version"])
+          print("prerelease=" + ("true" if d.get("prerelease") else "false"))
+          PY
+
+      - name: Set up Java 17
+        if: steps.release.outputs.publish == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        if: steps.release.outputs.publish == 'true'
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Set up Gradle 8.9
+        if: steps.release.outputs.publish == 'true'
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Ensure Android SDK 35
+        if: steps.release.outputs.publish == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Re-run interpreter tests and audits
+        if: steps.release.outputs.publish == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p receipts/codelab-release
+          bash codelab/tests/run_jvm_tests.sh | tee receipts/codelab-release/JVM_TESTS.txt
+          python3 codelab/scripts/audit_manifest.py | tee receipts/codelab-release/MANIFEST_AUDIT.json
+          python3 codelab/scripts/audit_source.py | tee receipts/codelab-release/SOURCE_AUDIT.json
+
+      - name: Build publication APK
+        if: steps.release.outputs.publish == 'true'
+        working-directory: codelab
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle --no-daemon --stacktrace :app:assembleDebug
+
+      - name: Verify publication APK
+        if: steps.release.outputs.publish == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="codelab/app/build/outputs/apk/debug/app-debug.apk"
+          test -f "$APK"
+          mkdir -p dist receipts/codelab-release
+          sha256sum "$APK" | tee receipts/codelab-release/APK_SHA256.txt
+
+          AAPT2="$(find "${ANDROID_HOME}/build-tools" -type f -name aapt2 | sort -V | tail -n 1)"
+          APKSIGNER="$(find "${ANDROID_HOME}/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -x "$AAPT2"
+          test -x "$APKSIGNER"
+
+          "$AAPT2" dump permissions "$APK" | tee receipts/codelab-release/APK_PERMISSIONS.txt
+          ! grep -q 'uses-permission' receipts/codelab-release/APK_PERMISSIONS.txt
+
+          "$APKSIGNER" verify --verbose --print-certs "$APK" | tee receipts/codelab-release/APK_SIGNATURE.txt
+          "$AAPT2" dump badging "$APK" | tee receipts/codelab-release/APK_BADGING.txt
+
+          grep -q "package: name='org.sigma.codelab'" receipts/codelab-release/APK_BADGING.txt
+          grep -q "versionName='${{ steps.release.outputs.version }}'" receipts/codelab-release/APK_BADGING.txt
+
+          cp "$APK" "dist/SIGMA-Code-Lab-${{ steps.release.outputs.version }}-EXPERIMENTAL.apk"
+          sha256sum "dist/SIGMA-Code-Lab-${{ steps.release.outputs.version }}-EXPERIMENTAL.apk" > dist/SHA256SUMS.txt
+
+      - name: Refuse duplicate tag
+        if: steps.release.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release already exists: $TAG" >&2
+            exit 1
+          fi
+
+      - name: Create public prerelease
+        if: steps.release.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
+          TITLE: ${{ steps.release.outputs.title }}
+          VERSION: ${{ steps.release.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          args=(
+            "$TAG"
+            "dist/SIGMA-Code-Lab-$VERSION-EXPERIMENTAL.apk#SIGMA Code Lab $VERSION experimental APK"
+            "dist/SHA256SUMS.txt#SHA-256 checksums"
+            --repo "$GITHUB_REPOSITORY"
+            --target "$GITHUB_SHA"
+            --title "$TITLE"
+            --notes-file codelab/release/RELEASE_NOTES.md
+          )
+          if [ "${{ steps.release.outputs.prerelease }}" = "true" ]; then
+            args+=(--prerelease)
+          fi
+          gh release create "${args[@]}"
+
+      - name: Upload publication receipts
+        if: always() && steps.release.outputs.publish == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: sigma-code-lab-publication-receipts
+          if-no-files-found: warn
+          retention-days: 90
+          path: |
+            receipts/codelab-release/**
+            dist/**

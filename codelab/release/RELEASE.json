@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "tag": "sigma-codelab-v0.1.0",
   "title": "SIGMA Code Lab 0.1.0",
-  "publish": false,
-  "publication_state": "BUILD_AND_AUDIT_FIRST / APK_SIGNING_IDENTITY_NOT_YET_STABILIZED"
+  "publish": true,
+  "prerelease": true,
+  "publication_state": "PUBLIC_PRERELEASE_REQUESTED / DEVELOPMENT_SIGNING_IDENTITY_NOT_FROZEN"
 }
