@@ -111,7 +111,7 @@ public final class MainActivity extends Activity {
                 long iterations = calibrateIterations();
 
                 JSONObject result = new JSONObject();
-                result.put("schema_version", "SIGMA_MOBILE_SWEEP_R1");
+                result.put("schema_version", "SIGMA_MOBILE_SWEEP_R2");
                 result.put("timestamp_utc", Instant.now().toString());
                 result.put("probe", probe);
                 result.put("calibrated_iterations_per_worker", iterations);
@@ -192,22 +192,37 @@ public final class MainActivity extends Activity {
 
     private long calibrateIterations() throws Exception {
         final long targetNs = 800_000_000L;
-        long iterations = 250_000L;
+        final long minNs = 500_000_000L;
+        final long maxNs = 2_000_000_000L;
+        final long minIterations = 50_000L;
+        final long maxIterations = 200_000_000L;
+
+        long candidate = 250_000L;
         try (BenchmarkEngine.Session session = new BenchmarkEngine.Session(1, () -> Debug.threadCpuTimeNanos())) {
-            session.run(iterations);
-            BenchmarkEngine.RunResult r = session.run(iterations);
-            if (r.wallTimeNs <= 0) return iterations;
-            double scale = (double) targetNs / (double) r.wallTimeNs;
-            scale = Math.max(0.25, Math.min(8.0, scale));
-            long candidate = Math.round(iterations * scale / 1000.0) * 1000L;
-            candidate = Math.max(50_000L, Math.min(20_000_000L, candidate));
-            BenchmarkEngine.RunResult verify = session.run(candidate);
-            if (verify.wallTimeNs < 500_000_000L || verify.wallTimeNs > 2_000_000_000L) {
-                double second = (double) targetNs / Math.max(1.0, (double) verify.wallTimeNs);
-                second = Math.max(0.5, Math.min(2.0, second));
-                candidate = Math.round(candidate * second / 1000.0) * 1000L;
-                candidate = Math.max(50_000L, Math.min(20_000_000L, candidate));
+            session.run(candidate); // JIT/runtime warmup; not measured.
+
+            for (int step = 0; step < 6; step++) {
+                BenchmarkEngine.RunResult r = session.run(candidate);
+                if (r.wallTimeNs >= minNs && r.wallTimeNs <= maxNs) {
+                    return candidate;
+                }
+                if (r.wallTimeNs <= 0) {
+                    throw new IllegalStateException("CALIBRATION_INVALID_WALL_TIME");
+                }
+
+                double rawScale = (double) targetNs / (double) r.wallTimeNs;
+                double boundedScale = Math.max(0.25, Math.min(16.0, rawScale));
+                long next = Math.round(candidate * boundedScale / 1000.0) * 1000L;
+                next = Math.max(minIterations, Math.min(maxIterations, next));
+
+                if (next == candidate) {
+                    return candidate;
+                }
+                candidate = next;
             }
+
+            // Final bounded candidate. It remains safe even if the device is so fast/slow
+            // that the target window could not be reached within the calibration budget.
             return candidate;
         }
     }
