@@ -1,0 +1,45 @@
+{
+  "object": "SIGMA_TASK4_MOBILE_ARM_R1_SWEEP_R2_PARTIAL",
+  "device_model_code": "24115RA8EG",
+  "source_state": "MEASURED_ON_DEVICE / USER_RETURNED_APP_JSON / PARTIAL_CHAT_CAPTURE",
+  "sweep_schema": "SIGMA_MOBILE_SWEEP_R2",
+  "timestamp_utc": "2026-09-25T07:16:05.871866Z",
+  "probe": {
+    "logical_cpus_runtime": 8,
+    "cpus_allowed_list": "4-7",
+    "cpu_allowed_count": 4,
+    "effective_cpu_limit": 4,
+    "thermal_status": "NONE",
+    "battery_temperature_c": 36.3,
+    "battery_level_percent": 56,
+    "scaling_max_freq_khz_allowed_cores": {
+      "cpu4": "1920000",
+      "cpu5": "1920000",
+      "cpu6": "1920000",
+      "cpu7": "1900800"
+    }
+  },
+  "calibrated_iterations_per_worker": 200000000,
+  "one_worker_complete": {
+    "trials": 5,
+    "median_wall_time_ns": 775166927,
+    "median_operations_per_second": 258008943.66588476,
+    "wall_time_cv": 0.004056283472426187,
+    "checksum_consistent": true,
+    "thermal_status_all": "NONE"
+  },
+  "two_worker_visible_partial": {
+    "visible_trials": 3,
+    "median_wall_time_ns": 777471874,
+    "median_operations_per_second": 514488064.9405975,
+    "throughput_scale_vs_one_worker_median": 1.994070661390897,
+    "median_cpu_to_wall_ratio": 1.9726929530057828,
+    "checksum_consistent_for_visible_trials": true
+  },
+  "boundaries": [
+    "PARTIAL_CHAT_CAPTURE != COMPLETE_SWEEP",
+    "SCALING_MAX_FREQ_OBSERVED != HARDWARE_MAX_FREQUENCY",
+    "THERMAL_STATUS_NONE_DURING_BOUNDED_TRIALS != NO_THERMAL_THROTTLING_POSSIBLE",
+    "TWO_WORKER_VISIBLE_TRIALS_3_OF_5 != COMPLETE_TWO_WORKER_GROUP"
+  ]
+}
