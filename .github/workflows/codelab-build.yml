@@ -1,0 +1,105 @@
+name: SIGMA Code Lab Build
+
+on:
+  push:
+    branches:
+      - sigma/coding-workspace-v0.1
+    paths:
+      - ".github/workflows/codelab-build.yml"
+      - "codelab/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Ensure Android SDK 35
+        shell: bash
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Pure JVM interpreter tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p receipts/codelab
+          bash codelab/tests/run_jvm_tests.sh | tee receipts/codelab/JVM_TESTS.txt
+
+      - name: Source and manifest audits
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 codelab/scripts/audit_manifest.py | tee receipts/codelab/MANIFEST_AUDIT.json
+          python3 codelab/scripts/audit_source.py | tee receipts/codelab/SOURCE_AUDIT.json
+
+      - name: Assemble test APK
+        working-directory: codelab
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle --no-daemon --stacktrace :app:assembleDebug
+
+      - name: APK audit
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="codelab/app/build/outputs/apk/debug/app-debug.apk"
+          test -f "$APK"
+          sha256sum "$APK" | tee receipts/codelab/APK_SHA256.txt
+
+          AAPT2="$(find "${ANDROID_HOME}/build-tools" -type f -name aapt2 | sort -V | tail -n 1)"
+          APKSIGNER="$(find "${ANDROID_HOME}/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -x "$AAPT2"
+          test -x "$APKSIGNER"
+
+          "$AAPT2" dump permissions "$APK" | tee receipts/codelab/APK_PERMISSIONS.txt
+          if grep -q 'uses-permission' receipts/codelab/APK_PERMISSIONS.txt; then
+            echo "Unexpected APK permission declaration" >&2
+            exit 1
+          fi
+
+          "$APKSIGNER" verify --verbose --print-certs "$APK" | tee receipts/codelab/APK_SIGNATURE.txt
+          "$AAPT2" dump badging "$APK" | tee receipts/codelab/APK_BADGING.txt
+
+          grep -q "package: name='org.sigma.codelab'" receipts/codelab/APK_BADGING.txt
+          grep -q "versionName='0.1.0'" receipts/codelab/APK_BADGING.txt
+
+          mkdir -p dist
+          cp "$APK" dist/SIGMA-Code-Lab-0.1.0-TEST.apk
+          cp codelab/release/RELEASE_NOTES.md dist/RELEASE_NOTES.md
+
+      - name: Upload verified test artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sigma-code-lab-0.1.0-test
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            dist/SIGMA-Code-Lab-0.1.0-TEST.apk
+            dist/RELEASE_NOTES.md
+            receipts/codelab/**
