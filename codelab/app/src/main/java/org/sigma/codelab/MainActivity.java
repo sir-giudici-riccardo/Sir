@@ -5,13 +5,16 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
@@ -73,13 +76,24 @@ public final class MainActivity extends Activity {
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
+        getWindow().setStatusBarColor(Color.WHITE);
+        getWindow().setNavigationBarColor(Color.WHITE);
+        getWindow().getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         int pad = dp(12);
         root.setPadding(pad, pad, pad, pad);
+        root.setOnApplyWindowInsetsListener((v, insets) -> {
+            int top = insets.getSystemWindowInsetTop();
+            int bottom = insets.getSystemWindowInsetBottom();
+            v.setPadding(pad, pad + top, pad, pad + bottom);
+            return insets;
+        });
 
         TextView title = new TextView(this);
-        title.setText("SIGMA Code Lab 0.1.0");
+        title.setText("SIGMA Code Lab 0.1.1 candidate");
         title.setTextSize(20f);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         root.addView(title);
@@ -129,10 +143,21 @@ public final class MainActivity extends Activity {
         editor.setTextSize(15f);
         editor.setGravity(android.view.Gravity.TOP | android.view.Gravity.START);
         editor.setHorizontallyScrolling(true);
+        editor.setHorizontalScrollBarEnabled(true);
+        editor.setVerticalScrollBarEnabled(true);
         editor.setSingleLine(false);
+        editor.setMaxLines(Integer.MAX_VALUE);
         editor.setMinLines(10);
+        editor.setMinWidth(getResources().getDisplayMetrics().widthPixels - dp(24));
         editor.setPadding(dp(8), dp(8), dp(8), dp(8));
-        root.addView(editor, new LinearLayout.LayoutParams(
+
+        HorizontalScrollView codeScroll = new HorizontalScrollView(this);
+        codeScroll.setFillViewport(true);
+        codeScroll.setHorizontalScrollBarEnabled(true);
+        codeScroll.addView(editor, new HorizontalScrollView.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.MATCH_PARENT));
+        root.addView(codeScroll, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1.2f));
 
         TextView outputLabel = new TextView(this);
@@ -153,6 +178,7 @@ public final class MainActivity extends Activity {
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 0.8f));
 
         setContentView(root);
+        root.requestApplyInsets();
 
         SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         String saved = prefs.getString(KEY_SOURCE, null);
