@@ -1,0 +1,49 @@
+{
+  "object": "SIGMA_CODE_LAB_0.4_GATE2_SYMBOL_ASSISTANT",
+  "state": "FROZEN_TESTED_CI / SYMBOL_ASSISTANT_PASS / REAL_DEVICE_VALIDATION_PENDING",
+  "parent_gate": "SIGMA_CODE_LAB_0.4_GATE1_RENDERER_DEATH_CONTAINMENT",
+  "implementation_commits": [
+    "0f6d9b1d4a8b3843c173b13ed7e187aaa36adcbd",
+    "467d87f0fd947c08bb6cb937da8d004a98433ba2"
+  ],
+  "github_actions_runs": {
+    "first_attempt": {
+      "run": 36135538873,
+      "status": "FAIL",
+      "failure": "symbol_mapping_count due missing newline at chunk boundary"
+    },
+    "corrected": {
+      "run": 36135758909,
+      "status": "PASS"
+    }
+  },
+  "validation": {
+    "jvm_tests": "49/49 PASS",
+    "source_audit": "PASS",
+    "manifest_audit": "PASS",
+    "ui_audit": "PASS",
+    "symbol_asset_sha256_matches_source": true,
+    "symbol_asset_sha256": "1860d8ac9f095b7f7f8a408cf69a96d2807897d37cde10887de6b223f8b1992d",
+    "mappings": 1210,
+    "unique_shortcuts": 1200,
+    "ambiguous_shortcuts": 9,
+    "android_build": "PASS",
+    "apk_audit": "PASS",
+    "declared_permissions": [],
+    "package": "org.sigma.codelab.dev",
+    "versionName": "0.4.0-dev",
+    "versionCode": 5
+  },
+  "behavior": [
+    "explicit SYMBOL button only",
+    "no automatic text mutation while typing",
+    "ambiguous shortcuts surface candidates and do not replace text",
+    "third-party MIT license and provenance retained"
+  ],
+  "boundaries": [
+    "CI_PASS != REAL_DEVICE_EDITOR_PASS",
+    "SYMBOL_HELPER != SIGMA_PARSER_EXTENSION",
+    "AMBIGUOUS_SHORTCUT != AUTO_RESOLVED_SHORTCUT",
+    "FAILED_RUN_PRESERVED_AS_NEGATIVE_RESULT"
+  ]
+}
