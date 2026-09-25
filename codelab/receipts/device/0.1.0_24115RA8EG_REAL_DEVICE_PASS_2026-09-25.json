@@ -1,0 +1,67 @@
+{
+  "object": "SIGMA_CODE_LAB_0.1.0_REAL_DEVICE_VALIDATION",
+  "device_model_code": "24115RA8EG",
+  "platform": "Android 16 / arm64-v8a",
+  "source_state": "USER_RETURNED_SCREENSHOTS_AND_OUTPUT / REAL_DEVICE_FUNCTIONAL_PASS",
+  "tests": [
+    {
+      "name": "arithmetic_variables_math",
+      "source_summary": "width=12, height=5, area and sqrt diagonal",
+      "observed_output": [
+        "area = 60",
+        "diagonal = 13"
+      ],
+      "observed_steps": 23,
+      "observed_elapsed_ms": 2.1,
+      "status": "PASS"
+    },
+    {
+      "name": "conditions_repeat_loop",
+      "source_summary": "repeat 10 adding 2, conditional >=20",
+      "observed_output": [
+        "target reached: 20"
+      ],
+      "observed_steps": 62,
+      "observed_elapsed_ms": 0.895,
+      "status": "PASS"
+    },
+    {
+      "name": "while_numeric_sequence",
+      "source_summary": "10-term Fibonacci-like sequence",
+      "observed_output": [
+        "0",
+        "1",
+        "1",
+        "2",
+        "3",
+        "5",
+        "8",
+        "13",
+        "21",
+        "34"
+      ],
+      "observed_steps": 192,
+      "observed_elapsed_ms": 1.374,
+      "status": "PASS"
+    }
+  ],
+  "reference_screen": "VISIBLE_AND_CONSISTENT_WITH_IMPLEMENTED_LANGUAGE",
+  "ui_findings": [
+    {
+      "issue": "TOP_CONTENT_OVERLAPS_ANDROID_STATUS_BAR",
+      "severity": "UX",
+      "target_version": "0.1.1"
+    },
+    {
+      "issue": "LONG_CODE_LINES_WRAP_VISUALLY",
+      "severity": "UX",
+      "target_version": "0.1.1"
+    }
+  ],
+  "conclusion": "INTERPRETER_CORE_NO_FAILURE_OBSERVED_IN_THIS_REAL_DEVICE_TEST_BATCH",
+  "boundaries": [
+    "THREE_EXAMPLE_PASSES != COMPLETE_LANGUAGE_VALIDATION",
+    "REAL_DEVICE_PASS != ALL_ANDROID_DEVICES",
+    "ELAPSED_MS_IS_LOCAL_OBSERVATION_NOT_BENCHMARK_CLAIM"
+  ]
+}
