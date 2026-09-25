@@ -43,6 +43,9 @@ js_required = {
     "external_navigation_blocked": "shouldOverrideUrlLoading",
     "evaluate_javascript": "evaluateJavascript(",
     "renderer_termination": "getWebViewRenderProcess()",
+    "renderer_loss_callback": "onRenderProcessGone(",
+    "renderer_loss_fail_closed": "RendererExitPolicy.message(",
+    "renderer_loss_handled": "return true;",
     "debugging_disabled": "setWebContentsDebuggingEnabled(false)",
 }
 
@@ -71,6 +74,7 @@ checks = {
     "javascript_engine_file_present": js_engine_path.exists(),
     "javascript_engine_hardening_complete": not js_required_missing,
     "javascript_engine_forbidden_paths_absent": not js_forbidden_hits,
+    "renderer_exit_policy_present": "class RendererExitPolicy" in ordinary_text,
     "dependencies_block_empty": body == "",
     "bounded_sigma_engine_limits_present": all(
         x in all_text for x in ["maxSteps", "maxOutputChars", "maxLoopIterations", "deadlineMs"]

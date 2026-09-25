@@ -1,3 +1,4 @@
+import org.sigma.codelab.RendererExitPolicy;
 import org.sigma.codelab.ScriptEngine;
 
 public final class ScriptEngineTests {
@@ -95,6 +96,13 @@ public final class ScriptEngineTests {
             depthLimited = e.getMessage().contains("maximum function call depth");
         }
         check(depthLimited, "function_call_depth_limit");
+
+        check(RendererExitPolicy.classification(true).equals("WEBVIEW_RENDERER_CRASH"),
+                "renderer_exit_crash_classification");
+        check(RendererExitPolicy.classification(false).equals("WEBVIEW_RENDERER_KILLED"),
+                "renderer_exit_killed_classification");
+        check(RendererExitPolicy.message(true, 2).contains("execution failed closed"),
+                "renderer_exit_fail_closed_message");
 
         System.out.println("TOTAL_PASS=" + passed);
     }

@@ -7,6 +7,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
 import android.view.ViewGroup;
+import android.webkit.RenderProcessGoneDetail;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -111,6 +112,25 @@ public final class LocalJavaScriptEngine {
                     evaluationStarted = true;
                     evaluate(view, code);
                 }
+            }
+
+            @Override
+            public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
+                boolean didCrash = detail != null && detail.didCrash();
+                int priority = detail == null ? -1 : detail.rendererPriorityAtExit();
+
+                if (!finished) {
+                    finishFailure(
+                            RendererExitPolicy.message(didCrash, priority),
+                            false,
+                            false,
+                            false);
+                } else {
+                    cleanupRendererAndView();
+                }
+
+                // Returning true tells Android that this WebView's renderer loss was handled.
+                return true;
             }
         });
 
