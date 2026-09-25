@@ -3,10 +3,16 @@ name: SIGMA Code Lab Build
 on:
   push:
     branches:
-      - sigma/coding-workspace-v0.1
+      - "sigma/coding-workspace-v*"
     paths:
       - ".github/workflows/codelab-build.yml"
-      - "codelab/**"
+      - "codelab/app/**"
+      - "codelab/tests/**"
+      - "codelab/scripts/**"
+      - "codelab/settings.gradle"
+      - "codelab/build.gradle"
+      - "codelab/gradle.properties"
+      - "codelab/release/**"
   workflow_dispatch:
 
 permissions:
@@ -56,8 +62,23 @@ jobs:
           set -euo pipefail
           python3 codelab/scripts/audit_manifest.py | tee receipts/codelab/MANIFEST_AUDIT.json
           python3 codelab/scripts/audit_source.py | tee receipts/codelab/SOURCE_AUDIT.json
+          python3 - <<'PY' | tee receipts/codelab/UI_HOTFIX_AUDIT.json
+          from pathlib import Path
+          import json, sys
+          text=Path("codelab/app/src/main/java/org/sigma/codelab/MainActivity.java").read_text(encoding="utf-8")
+          checks={
+            "system_insets_listener":"setOnApplyWindowInsetsListener" in text,
+            "root_requests_insets":"requestApplyInsets" in text,
+            "horizontal_scroll_container":"HorizontalScrollView" in text,
+            "editor_horizontal_scrolling":"setHorizontallyScrolling(true)" in text,
+            "candidate_label":"0.1.1 candidate" in text,
+          }
+          result="PASS" if all(checks.values()) else "FAIL"
+          print(json.dumps({"checks":checks,"result":result},indent=2,sort_keys=True))
+          sys.exit(0 if result=="PASS" else 1)
+          PY
 
-      - name: Assemble test APK
+      - name: Assemble side-by-side test APK
         working-directory: codelab
         shell: bash
         run: |
@@ -86,20 +107,18 @@ jobs:
           "$APKSIGNER" verify --verbose --print-certs "$APK" | tee receipts/codelab/APK_SIGNATURE.txt
           "$AAPT2" dump badging "$APK" | tee receipts/codelab/APK_BADGING.txt
 
-          grep -q "package: name='org.sigma.codelab'" receipts/codelab/APK_BADGING.txt
-          grep -q "versionName='0.1.0'" receipts/codelab/APK_BADGING.txt
+          grep -q "package: name='org.sigma.codelab.dev'" receipts/codelab/APK_BADGING.txt
+          grep -q "versionName='0.1.1-dev'" receipts/codelab/APK_BADGING.txt
 
           mkdir -p dist
-          cp "$APK" dist/SIGMA-Code-Lab-0.1.0-TEST.apk
-          cp codelab/release/RELEASE_NOTES.md dist/RELEASE_NOTES.md
+          cp "$APK" dist/SIGMA-Code-Lab-0.1.1-CANDIDATE.apk
 
-      - name: Upload verified test artifact
+      - name: Upload verified candidate
         uses: actions/upload-artifact@v4
         with:
-          name: sigma-code-lab-0.1.0-test
+          name: sigma-code-lab-0.1.1-candidate
           if-no-files-found: error
           retention-days: 30
           path: |
-            dist/SIGMA-Code-Lab-0.1.0-TEST.apk
-            dist/RELEASE_NOTES.md
+            dist/SIGMA-Code-Lab-0.1.1-CANDIDATE.apk
             receipts/codelab/**
