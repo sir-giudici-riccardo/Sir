@@ -1,0 +1,41 @@
+{
+  "object": "SIGMA_CODE_LAB_0.1.1_REAL_DEVICE_UX_VALIDATION",
+  "device_model_code": "24115RA8EG",
+  "source_state": "USER_RETURNED_SCREENSHOT_AND_OUTPUT / REAL_DEVICE_UX_PASS",
+  "observed": {
+    "title_clear_of_status_bar": true,
+    "long_code_line_not_visually_wrapped": true,
+    "horizontal_scroll_container_present_from_build": true,
+    "arithmetic_example": {
+      "output": [
+        "area = 60",
+        "diagonal = 13"
+      ],
+      "steps": 23,
+      "elapsed_ms": 2.214,
+      "status": "PASS"
+    },
+    "conditions_loop_examples": [
+      {
+        "output": "target reached: 20",
+        "steps": 62,
+        "elapsed_ms": 4.056,
+        "status": "PASS"
+      },
+      {
+        "output": "target reached: 20",
+        "steps": 62,
+        "elapsed_ms": 3.068,
+        "status": "PASS"
+      }
+    ],
+    "reference_screen": "VISIBLE_AND_CONSISTENT_WITH_SIGMA_SCRIPT_0.1"
+  },
+  "conclusion": "0.1.1 UX HOTFIX VALIDATED ON TARGET DEVICE; INTERPRETER CORE CONTINUES TO PASS OBSERVED EXAMPLES",
+  "boundaries": [
+    "SCREENSHOT_CONFIRMS_NO_WRAP_VISUALLY != USER_GESTURE_HORIZONTAL_SCROLL_EXPLICITLY_VERIFIED",
+    "REAL_DEVICE_UX_PASS_ON_ONE_DEVICE != ALL_ANDROID_LAYOUTS",
+    "MILLISECOND_TIMINGS != PERFORMANCE_BENCHMARK"
+  ],
+  "next_gate": "STABLE_ANDROID_UPDATE_SIGNING_IDENTITY_BEFORE_NORMAL_IN_PLACE_UPGRADE_LINEAGE"
+}
