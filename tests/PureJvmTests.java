@@ -1,0 +1,40 @@
+import org.sigma.mobileprobe.BenchmarkEngine;
+import org.sigma.mobileprobe.CpuParsers;
+
+import java.util.Arrays;
+
+public final class PureJvmTests {
+    private static int passed = 0;
+
+    private static void check(boolean cond, String name) {
+        if (!cond) throw new AssertionError(name);
+        passed++;
+        System.out.println("PASS " + name);
+    }
+
+    public static void main(String[] args) throws Exception {
+        check(CpuParsers.parseCpuList("0-3,5,7-8").equals(Arrays.asList(0,1,2,3,5,7,8)), "cpu_list_parse");
+        check(Math.abs(CpuParsers.parseCpuMaxCores("400000 100000") - 4.0) < 1e-12, "cpu_max_parse");
+        check(CpuParsers.parseCpuMaxCores("max 100000") == null, "cpu_max_unlimited");
+        check(CpuParsers.effectiveCpuLimit(8, 6, 4.9) == 4, "effective_cpu_limit");
+
+        long c1;
+        long c2;
+        try (BenchmarkEngine.Session s = new BenchmarkEngine.Session(2, () -> -1L)) {
+            BenchmarkEngine.RunResult a = s.run(50_000);
+            BenchmarkEngine.RunResult b = s.run(50_000);
+            check(a.operations == 100_000L && b.operations == 100_000L, "benchmark_accounting");
+            check(a.observedThreads == 2 && b.observedThreads == 2, "benchmark_observed_threads");
+            c1 = a.checksum;
+            c2 = b.checksum;
+        }
+        check(c1 == c2, "benchmark_deterministic_checksum");
+
+        boolean rejected = false;
+        try { new BenchmarkEngine.Session(0, () -> -1L); }
+        catch (IllegalArgumentException expected) { rejected = true; }
+        check(rejected, "zero_workers_rejected");
+
+        System.out.println("TOTAL_PASS=" + passed);
+    }
+}
