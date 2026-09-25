@@ -27,7 +27,7 @@ public final class MainActivity extends Activity {
     private static final String PREFS = "sigma_codelab";
     private static final String KEY_SOURCE = "source";
     private static final ScriptEngine.Limits LIMITS =
-            new ScriptEngine.Limits(500_000L, 65_536, 100_000L, 5_000L);
+            new ScriptEngine.Limits(500_000L, 65_536, 100_000L, 5_000L, 64);
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final AtomicBoolean cancelRequested = new AtomicBoolean(false);
@@ -59,18 +59,29 @@ public final class MainActivity extends Activity {
                     + "  print \"target not reached\"\n"
                     + "}\n",
 
-            "# Small numeric sequence\n"
-                    + "let a = 0\n"
-                    + "let b = 1\n"
-                    + "let next = 0\n"
-                    + "let i = 0\n"
-                    + "while i < 10 {\n"
-                    + "  print a\n"
-                    + "  next = a + b\n"
-                    + "  a = b\n"
-                    + "  b = next\n"
-                    + "  i = i + 1\n"
+            "# Lists and aggregate functions\n"
+                    + "let values = range(1, 6)\n"
+                    + "push(values, 10)\n"
+                    + "set(values, 0, 5)\n"
+                    + "print values\n"
+                    + "print \"sum = \" + sum(values)\n"
+                    + "print \"mean = \" + mean(values)\n",
+
+            "# User-defined functions\n"
+                    + "fn square(x) {\n"
+                    + "  return x * x\n"
                     + "}\n"
+                    + "fn hypotenuse(a, b) {\n"
+                    + "  return sqrt(square(a) + square(b))\n"
+                    + "}\n"
+                    + "print hypotenuse(3, 4)\n",
+
+            "# Bounded recursion\n"
+                    + "fn fact(n) {\n"
+                    + "  if n <= 1 { return 1 }\n"
+                    + "  return n * fact(n - 1)\n"
+                    + "}\n"
+                    + "print fact(6)\n"
     };
 
     @Override protected void onCreate(Bundle savedInstanceState) {
@@ -93,7 +104,7 @@ public final class MainActivity extends Activity {
         });
 
         TextView title = new TextView(this);
-        title.setText("SIGMA Code Lab 0.1.1 candidate");
+        title.setText("SIGMA Code Lab 0.2.0 dev");
         title.setTextSize(20f);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         root.addView(title);
@@ -118,7 +129,6 @@ public final class MainActivity extends Activity {
         Button example = new Button(this);
         example.setText("Example");
         row1.addView(example, weighted());
-
         root.addView(row1);
 
         LinearLayout row2 = new LinearLayout(this);
@@ -135,7 +145,6 @@ public final class MainActivity extends Activity {
         Button reference = new Button(this);
         reference.setText("Reference");
         row2.addView(reference, weighted());
-
         root.addView(row2);
 
         editor = new EditText(this);
@@ -243,24 +252,30 @@ public final class MainActivity extends Activity {
 
     private void showReference() {
         String reference =
-                "SIGMA Script 0.1\n\n"
+                "SIGMA Script 0.2\n\n"
                 + "Statements:\n"
                 + "  let x = 10\n"
                 + "  x = x + 1\n"
                 + "  print x\n"
                 + "  if condition { ... } else { ... }\n"
                 + "  repeat 10 { ... }\n"
-                + "  while condition { ... }\n\n"
-                + "Values: numbers, strings, booleans\n"
+                + "  while condition { ... }\n"
+                + "  fn name(a, b) { return a + b }\n"
+                + "  return value\n\n"
+                + "Values: numbers, strings, booleans, lists\n"
+                + "Lists: [1, 2, 3]\n"
                 + "Logic: and, or, not\n"
                 + "Operators: + - * / % == != < <= > >=\n"
                 + "Constants: pi, e\n"
-                + "Functions:\n"
+                + "Numeric/string functions:\n"
                 + "  sqrt abs sin cos tan log exp\n"
                 + "  floor ceil round pow min max clamp\n"
-                + "  len str num type\n\n"
+                + "  len str num type\n"
+                + "List functions:\n"
+                + "  get set push pop range sum mean\n\n"
+                + "Functions use local variable scope. Recursion is bounded by call depth.\n"
                 + "Comments: # text   or   // text\n\n"
-                + "Execution limits are enforced for steps, loops, output and wall time.";
+                + "Execution limits are enforced for steps, loops, function depth, output and wall time.";
         lastOutput = reference;
         output.setText(reference);
     }

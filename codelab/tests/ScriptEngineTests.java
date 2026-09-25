@@ -69,6 +69,33 @@ public final class ScriptEngineTests {
         check(run("print \"a\" < \"b\"").output.equals("true\n"), "string_comparison");
         expectError("repeat -1 { print 1 }", "non-negative integer", "repeat_rejects_negative");
 
+        check(run("let xs = [1, 2, 3]\nprint xs\nprint len(xs)\nprint type(xs)").output.equals("[1, 2, 3]\n3\nlist\n"), "list_literal_len_type");
+        check(run("let xs = [10, 20, 30]\nprint get(xs, 1)\nset(xs, 1, 99)\nprint xs").output.equals("20\n[10, 99, 30]\n"), "list_get_set");
+        check(run("let xs = []\npush(xs, 4)\npush(xs, 5)\nprint xs\nprint pop(xs)\nprint xs").output.equals("[4, 5]\n5\n[4]\n"), "list_push_pop");
+        check(run("let xs = range(1, 6)\nprint xs\nprint sum(xs)\nprint mean(xs)").output.equals("[1, 2, 3, 4, 5]\n15\n3\n"), "range_sum_mean");
+        check(run("print range(5, 0, -2)").output.equals("[5, 3, 1]\n"), "descending_range");
+        expectError("print get([1], 2)", "index out of range", "list_index_bounds");
+        expectError("print pop([])", "empty list", "pop_empty_error");
+
+        check(run("fn add(a, b) { return a + b }\nprint add(7, 8)").output.equals("15\n"), "user_function_return");
+        check(run("let x = 10\nfn twice(v) { let x = v * 2\nreturn x }\nprint twice(9)\nprint x").output.equals("18\n10\n"), "function_local_scope_restore");
+        check(run("fn classify(x) { if x > 0 { return \"positive\" } else { return \"other\" } }\nprint classify(3)").output.equals("positive\n"), "function_return_from_if");
+        check(run("fn nothing() { let x = 1 }\nprint type(nothing())").output.equals("null\n"), "function_default_null_return");
+        check(run("fn fact(n) { if n <= 1 { return 1 }\nreturn n * fact(n - 1) }\nprint fact(6)").output.equals("720\n"), "recursive_function");
+        expectError("return 3", "return outside function", "top_level_return_rejected");
+        expectError("fn sqrt(x) { return x }", "cannot redefine builtin", "builtin_redefinition_rejected");
+        expectError("fn f(a, a) { return a }", "duplicate parameter", "duplicate_parameter_rejected");
+        expectError("fn add(a,b){return a+b}\nprint add(1)", "expected 2 argument", "function_arity_error");
+
+        ScriptEngine.Limits depthLimits = new ScriptEngine.Limits(100000, 1024, 10000, 1000, 8);
+        boolean depthLimited = false;
+        try {
+            ScriptEngine.execute("fn loop(x) { return loop(x + 1) }\nprint loop(0)", depthLimits, () -> false);
+        } catch (ScriptEngine.ScriptException e) {
+            depthLimited = e.getMessage().contains("maximum function call depth");
+        }
+        check(depthLimited, "function_call_depth_limit");
+
         System.out.println("TOTAL_PASS=" + passed);
     }
 }

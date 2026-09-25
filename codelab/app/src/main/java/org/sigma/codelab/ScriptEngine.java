@@ -15,19 +15,25 @@ public final class ScriptEngine {
         public final int maxOutputChars;
         public final long maxLoopIterations;
         public final long deadlineMs;
+        public final int maxCallDepth;
 
         public Limits(long maxSteps, int maxOutputChars, long maxLoopIterations, long deadlineMs) {
-            if (maxSteps < 1 || maxOutputChars < 1 || maxLoopIterations < 1 || deadlineMs < 1) {
+            this(maxSteps, maxOutputChars, maxLoopIterations, deadlineMs, 64);
+        }
+
+        public Limits(long maxSteps, int maxOutputChars, long maxLoopIterations, long deadlineMs, int maxCallDepth) {
+            if (maxSteps < 1 || maxOutputChars < 1 || maxLoopIterations < 1 || deadlineMs < 1 || maxCallDepth < 1) {
                 throw new IllegalArgumentException("limits must be positive");
             }
             this.maxSteps = maxSteps;
             this.maxOutputChars = maxOutputChars;
             this.maxLoopIterations = maxLoopIterations;
             this.deadlineMs = deadlineMs;
+            this.maxCallDepth = maxCallDepth;
         }
 
         public static Limits defaults() {
-            return new Limits(200_000L, 65_536, 100_000L, 3_000L);
+            return new Limits(200_000L, 65_536, 100_000L, 3_000L, 64);
         }
     }
 
@@ -65,7 +71,11 @@ public final class ScriptEngine {
         ctx.vars.put("pi", Math.PI);
         ctx.vars.put("e", Math.E);
 
-        for (Stmt stmt : program) stmt.exec(ctx);
+        try {
+            for (Stmt stmt : program) stmt.exec(ctx);
+        } catch (ReturnSignal signal) {
+            throw new ScriptException("return outside function");
+        }
         return new Result(
                 ctx.output.toString(),
                 ctx.steps,
@@ -76,8 +86,9 @@ public final class ScriptEngine {
     private enum TokenType {
         NUMBER, STRING, IDENT,
         LET, PRINT, IF, ELSE, WHILE, REPEAT, TRUE, FALSE, AND, OR, NOT,
+        FN, RETURN,
         PLUS, MINUS, STAR, SLASH, PERCENT,
-        LPAREN, RPAREN, LBRACE, RBRACE, COMMA, SEMICOLON,
+        LPAREN, RPAREN, LBRACE, RBRACE, LBRACKET, RBRACKET, COMMA, SEMICOLON,
         EQUAL, EQUAL_EQUAL, BANG_EQUAL, LT, LTE, GT, GTE,
         EOF
     }
@@ -128,6 +139,8 @@ public final class ScriptEngine {
                 case ')': add(TokenType.RPAREN); break;
                 case '{': add(TokenType.LBRACE); break;
                 case '}': add(TokenType.RBRACE); break;
+                case '[': add(TokenType.LBRACKET); break;
+                case ']': add(TokenType.RBRACKET); break;
                 case ',': add(TokenType.COMMA); break;
                 case '=': add(match('=') ? TokenType.EQUAL_EQUAL : TokenType.EQUAL); break;
                 case '!':
@@ -212,6 +225,8 @@ public final class ScriptEngine {
                 case "and": type = TokenType.AND; break;
                 case "or": type = TokenType.OR; break;
                 case "not": type = TokenType.NOT; break;
+                case "fn": type = TokenType.FN; break;
+                case "return": type = TokenType.RETURN; break;
                 default: type = TokenType.IDENT;
             }
             add(type);
@@ -241,13 +256,32 @@ public final class ScriptEngine {
     private interface Expr { Object eval(Context ctx) throws ScriptException; }
     private interface Stmt { void exec(Context ctx) throws ScriptException; }
 
+    private static final class UserFunction {
+        final List<String> params;
+        final List<Stmt> body;
+        UserFunction(List<String> params, List<Stmt> body) {
+            this.params = params;
+            this.body = body;
+        }
+    }
+
+    private static final class ReturnSignal extends RuntimeException {
+        final Object value;
+        ReturnSignal(Object value) {
+            super(null, null, false, false);
+            this.value = value;
+        }
+    }
+
     private static final class Context {
         final Limits limits;
         final BooleanSupplier cancelled;
         final long deadlineNs;
         final Map<String, Object> vars = new LinkedHashMap<>();
+        final Map<String, UserFunction> functions = new LinkedHashMap<>();
         final StringBuilder output = new StringBuilder();
         long steps;
+        int callDepth;
 
         Context(Limits limits, BooleanSupplier cancelled, long startedNs) {
             this.limits = limits;
@@ -287,6 +321,17 @@ public final class ScriptEngine {
         final Object value;
         LiteralExpr(Object value) { this.value = value; }
         @Override public Object eval(Context ctx) throws ScriptException { ctx.tick(); return value; }
+    }
+
+    private static final class ListExpr implements Expr {
+        final List<Expr> values;
+        ListExpr(List<Expr> values) { this.values = values; }
+        @Override public Object eval(Context ctx) throws ScriptException {
+            ctx.tick();
+            List<Object> out = new ArrayList<>();
+            for (Expr expr : values) out.add(expr.eval(ctx));
+            return out;
+        }
     }
 
     private static final class VariableExpr implements Expr {
@@ -369,7 +414,10 @@ public final class ScriptEngine {
             ctx.tick();
             List<Object> values = new ArrayList<>();
             for (Expr arg : args) values.add(arg.eval(ctx));
-            return callBuiltin(name, values);
+
+            UserFunction function = ctx.functions.get(name);
+            if (function != null) return callUserFunction(ctx, name, function, values);
+            return callBuiltin(name, values, ctx);
         }
     }
 
@@ -457,6 +505,31 @@ public final class ScriptEngine {
         }
     }
 
+    private static final class FunctionStmt implements Stmt {
+        final String name;
+        final List<String> params;
+        final List<Stmt> body;
+        FunctionStmt(String name, List<String> params, List<Stmt> body) {
+            this.name = name; this.params = params; this.body = body;
+        }
+        @Override public void exec(Context ctx) throws ScriptException {
+            ctx.tick();
+            if (isBuiltinName(name)) throw new ScriptException("cannot redefine builtin function '" + name + "'");
+            ctx.functions.put(name, new UserFunction(params, body));
+        }
+    }
+
+    private static final class ReturnStmt implements Stmt {
+        final Expr expr;
+        ReturnStmt(Expr expr) { this.expr = expr; }
+        @Override public void exec(Context ctx) throws ScriptException {
+            ctx.tick();
+            if (ctx.callDepth <= 0) throw new ScriptException("return outside function");
+            Object value = expr == null ? null : expr.eval(ctx);
+            throw new ReturnSignal(value);
+        }
+    }
+
     private static final class Parser {
         private final List<Token> tokens;
         private int current;
@@ -479,6 +552,8 @@ public final class ScriptEngine {
             if (match(TokenType.IF)) return ifStatement();
             if (match(TokenType.REPEAT)) return repeatStatement();
             if (match(TokenType.WHILE)) return whileStatement();
+            if (match(TokenType.FN)) return functionStatement();
+            if (match(TokenType.RETURN)) return returnStatement();
 
             if (check(TokenType.IDENT) && checkNext(TokenType.EQUAL)) {
                 String name = advance().lexeme;
@@ -511,6 +586,29 @@ public final class ScriptEngine {
         private Stmt whileStatement() throws ScriptException {
             Expr condition = expression();
             return new WhileStmt(condition, block());
+        }
+
+        private Stmt functionStatement() throws ScriptException {
+            Token name = consume(TokenType.IDENT, "expected function name after 'fn'");
+            consume(TokenType.LPAREN, "expected '(' after function name");
+            List<String> params = new ArrayList<>();
+            if (!check(TokenType.RPAREN)) {
+                do {
+                    if (params.size() >= 16) throw error(peek(), "too many function parameters");
+                    String param = consume(TokenType.IDENT, "expected parameter name").lexeme;
+                    if (params.contains(param)) throw error(previous(), "duplicate parameter '" + param + "'");
+                    params.add(param);
+                } while (match(TokenType.COMMA));
+            }
+            consume(TokenType.RPAREN, "expected ')' after parameters");
+            return new FunctionStmt(name.lexeme, params, block());
+        }
+
+        private Stmt returnStatement() throws ScriptException {
+            if (check(TokenType.SEMICOLON) || check(TokenType.RBRACE) || check(TokenType.EOF)) {
+                return new ReturnStmt(null);
+            }
+            return new ReturnStmt(expression());
         }
 
         private List<Stmt> block() throws ScriptException {
@@ -587,6 +685,18 @@ public final class ScriptEngine {
             if (match(TokenType.TRUE)) return new LiteralExpr(true);
             if (match(TokenType.FALSE)) return new LiteralExpr(false);
 
+            if (match(TokenType.LBRACKET)) {
+                List<Expr> values = new ArrayList<>();
+                if (!check(TokenType.RBRACKET)) {
+                    do {
+                        if (values.size() >= 10_000) throw error(peek(), "list literal too large");
+                        values.add(expression());
+                    } while (match(TokenType.COMMA));
+                }
+                consume(TokenType.RBRACKET, "expected ']' after list values");
+                return new ListExpr(values);
+            }
+
             if (match(TokenType.IDENT)) {
                 String name = previous().lexeme;
                 if (match(TokenType.LPAREN)) {
@@ -637,7 +747,33 @@ public final class ScriptEngine {
         }
     }
 
-    private static Object callBuiltin(String name, List<Object> args) throws ScriptException {
+    private static Object callUserFunction(Context ctx, String name, UserFunction function, List<Object> args)
+            throws ScriptException {
+        if (args.size() != function.params.size()) {
+            throw new ScriptException(name + ": expected " + function.params.size() + " argument(s), got " + args.size());
+        }
+        if (ctx.callDepth >= ctx.limits.maxCallDepth) {
+            throw new ScriptException("execution limit: maximum function call depth exceeded");
+        }
+
+        Map<String, Object> saved = new LinkedHashMap<>(ctx.vars);
+        ctx.callDepth++;
+        try {
+            for (int i = 0; i < function.params.size(); i++) {
+                ctx.vars.put(function.params.get(i), args.get(i));
+            }
+            for (Stmt stmt : function.body) stmt.exec(ctx);
+            return null;
+        } catch (ReturnSignal signal) {
+            return signal.value;
+        } finally {
+            ctx.callDepth--;
+            ctx.vars.clear();
+            ctx.vars.putAll(saved);
+        }
+    }
+
+    private static Object callBuiltin(String name, List<Object> args, Context ctx) throws ScriptException {
         switch (name) {
             case "sqrt": requireArgs(name, args, 1); return Math.sqrt(number(args.get(0), name));
             case "abs": requireArgs(name, args, 1); return Math.abs(number(args.get(0), name));
@@ -667,6 +803,7 @@ public final class ScriptEngine {
                 return Math.max(lo, Math.min(hi, x));
             case "len":
                 requireArgs(name, args, 1);
+                if (args.get(0) instanceof List) return (double) ((List<?>) args.get(0)).size();
                 return (double) stringify(args.get(0)).length();
             case "str":
                 requireArgs(name, args, 1);
@@ -682,13 +819,94 @@ public final class ScriptEngine {
                 }
             case "type":
                 requireArgs(name, args, 1);
-                Object t = args.get(0);
-                if (t instanceof Number) return "number";
-                if (t instanceof Boolean) return "boolean";
-                if (t instanceof String) return "string";
-                return "unknown";
+                return typeName(args.get(0));
+            case "get": {
+                requireArgs(name, args, 2);
+                List<Object> list = list(args.get(0), name);
+                int index = index(args.get(1), list.size(), name);
+                return list.get(index);
+            }
+            case "set": {
+                requireArgs(name, args, 3);
+                List<Object> list = list(args.get(0), name);
+                int index = index(args.get(1), list.size(), name);
+                return list.set(index, args.get(2));
+            }
+            case "push": {
+                requireArgs(name, args, 2);
+                List<Object> list = list(args.get(0), name);
+                if (list.size() >= 100_000) throw new ScriptException("push: list size limit exceeded");
+                list.add(args.get(1));
+                return (double) list.size();
+            }
+            case "pop": {
+                requireArgs(name, args, 1);
+                List<Object> list = list(args.get(0), name);
+                if (list.isEmpty()) throw new ScriptException("pop: empty list");
+                return list.remove(list.size() - 1);
+            }
+            case "sum": {
+                requireArgs(name, args, 1);
+                List<Object> list = list(args.get(0), name);
+                double total = 0.0;
+                for (Object item : list) {
+                    ctx.tick();
+                    total += number(item, name);
+                }
+                return total;
+            }
+            case "mean": {
+                requireArgs(name, args, 1);
+                List<Object> list = list(args.get(0), name);
+                if (list.isEmpty()) throw new ScriptException("mean: empty list");
+                double total = 0.0;
+                for (Object item : list) {
+                    ctx.tick();
+                    total += number(item, name);
+                }
+                return total / list.size();
+            }
+            case "range": {
+                if (args.size() < 1 || args.size() > 3) {
+                    throw new ScriptException("range: expected 1 to 3 arguments, got " + args.size());
+                }
+                long start;
+                long stop;
+                long step;
+                if (args.size() == 1) {
+                    start = 0;
+                    stop = integer(args.get(0), "range");
+                    step = 1;
+                } else {
+                    start = integer(args.get(0), "range");
+                    stop = integer(args.get(1), "range");
+                    step = args.size() == 3 ? integer(args.get(2), "range") : 1;
+                }
+                if (step == 0) throw new ScriptException("range: step must not be zero");
+                List<Object> out = new ArrayList<>();
+                long current = start;
+                while ((step > 0 && current < stop) || (step < 0 && current > stop)) {
+                    ctx.tick();
+                    if (out.size() >= 100_000) throw new ScriptException("range: list size limit exceeded");
+                    out.add((double) current);
+                    current += step;
+                }
+                return out;
+            }
             default:
                 throw new ScriptException("unknown function '" + name + "'");
+        }
+    }
+
+    private static boolean isBuiltinName(String name) {
+        switch (name) {
+            case "sqrt": case "abs": case "sin": case "cos": case "tan": case "log": case "exp":
+            case "floor": case "ceil": case "round": case "pow": case "min": case "max": case "clamp":
+            case "len": case "str": case "num": case "type": case "get": case "set": case "push":
+            case "pop": case "sum": case "mean": case "range":
+                return true;
+            default:
+                return false;
         }
     }
 
@@ -696,6 +914,26 @@ public final class ScriptEngine {
         if (args.size() != expected) {
             throw new ScriptException(name + ": expected " + expected + " argument(s), got " + args.size());
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Object> list(Object value, String context) throws ScriptException {
+        if (value instanceof List) return (List<Object>) value;
+        throw new ScriptException(context + ": expected list, got " + typeName(value));
+    }
+
+    private static int index(Object value, int size, String context) throws ScriptException {
+        long raw = integer(value, context);
+        if (raw < 0 || raw >= size) throw new ScriptException(context + ": index out of range: " + raw);
+        return (int) raw;
+    }
+
+    private static long integer(Object value, String context) throws ScriptException {
+        double d = number(value, context);
+        if (!Double.isFinite(d) || Math.floor(d) != d || d < Long.MIN_VALUE || d > Long.MAX_VALUE) {
+            throw new ScriptException(context + ": expected integer");
+        }
+        return (long) d;
     }
 
     private static double number(Object value, String context) throws ScriptException {
@@ -725,6 +963,7 @@ public final class ScriptEngine {
         if (value instanceof Boolean) return (Boolean) value;
         if (value instanceof Number) return ((Number) value).doubleValue() != 0.0;
         if (value instanceof String) return !((String) value).isEmpty();
+        if (value instanceof List) return !((List<?>) value).isEmpty();
         return true;
     }
 
@@ -737,6 +976,15 @@ public final class ScriptEngine {
             }
             return String.format(Locale.ROOT, "%s", d);
         }
+        if (value instanceof List) {
+            StringBuilder out = new StringBuilder("[");
+            List<?> list = (List<?>) value;
+            for (int i = 0; i < list.size(); i++) {
+                if (i > 0) out.append(", ");
+                out.append(stringify(list.get(i)));
+            }
+            return out.append(']').toString();
+        }
         return String.valueOf(value);
     }
 
@@ -745,6 +993,7 @@ public final class ScriptEngine {
         if (value instanceof Number) return "number";
         if (value instanceof Boolean) return "boolean";
         if (value instanceof String) return "string";
+        if (value instanceof List) return "list";
         return value.getClass().getSimpleName();
     }
 }

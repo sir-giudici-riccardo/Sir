@@ -56,13 +56,13 @@ jobs:
           mkdir -p receipts/codelab
           bash codelab/tests/run_jvm_tests.sh | tee receipts/codelab/JVM_TESTS.txt
 
-      - name: Source and manifest audits
+      - name: Source, manifest and UI audits
         shell: bash
         run: |
           set -euo pipefail
           python3 codelab/scripts/audit_manifest.py | tee receipts/codelab/MANIFEST_AUDIT.json
           python3 codelab/scripts/audit_source.py | tee receipts/codelab/SOURCE_AUDIT.json
-          python3 - <<'PY' | tee receipts/codelab/UI_HOTFIX_AUDIT.json
+          python3 - <<'PY' | tee receipts/codelab/UI_AUDIT.json
           from pathlib import Path
           import json, sys
           text=Path("codelab/app/src/main/java/org/sigma/codelab/MainActivity.java").read_text(encoding="utf-8")
@@ -71,14 +71,14 @@ jobs:
             "root_requests_insets":"requestApplyInsets" in text,
             "horizontal_scroll_container":"HorizontalScrollView" in text,
             "editor_horizontal_scrolling":"setHorizontallyScrolling(true)" in text,
-            "candidate_label":"0.1.1 candidate" in text,
+            "product_label":"SIGMA Code Lab" in text,
           }
           result="PASS" if all(checks.values()) else "FAIL"
           print(json.dumps({"checks":checks,"result":result},indent=2,sort_keys=True))
           sys.exit(0 if result=="PASS" else 1)
           PY
 
-      - name: Assemble side-by-side test APK
+      - name: Assemble development APK
         working-directory: codelab
         shell: bash
         run: |
@@ -108,17 +108,18 @@ jobs:
           "$AAPT2" dump badging "$APK" | tee receipts/codelab/APK_BADGING.txt
 
           grep -q "package: name='org.sigma.codelab.dev'" receipts/codelab/APK_BADGING.txt
-          grep -q "versionName='0.1.1-dev'" receipts/codelab/APK_BADGING.txt
 
+          VERSION="$(sed -n "s/.*versionName='\([^']*\)'.*/\1/p" receipts/codelab/APK_BADGING.txt | head -1)"
+          test -n "$VERSION"
           mkdir -p dist
-          cp "$APK" dist/SIGMA-Code-Lab-0.1.1-CANDIDATE.apk
+          cp "$APK" "dist/SIGMA-Code-Lab-$VERSION.apk"
 
-      - name: Upload verified candidate
+      - name: Upload verified development artifact
         uses: actions/upload-artifact@v4
         with:
-          name: sigma-code-lab-0.1.1-candidate
+          name: sigma-code-lab-development
           if-no-files-found: error
           retention-days: 30
           path: |
-            dist/SIGMA-Code-Lab-0.1.1-CANDIDATE.apk
+            dist/*.apk
             receipts/codelab/**
