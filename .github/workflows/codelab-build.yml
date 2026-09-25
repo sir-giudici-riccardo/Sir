@@ -77,6 +77,8 @@ jobs:
             "system_light_dark_modes":all(x in text for x in ['THEME_SYSTEM','THEME_LIGHT','THEME_DARK']),
             "symbol_button":'setText("Symbol")' in text,
             "symbol_helper":"SymbolEditHelper.resolve" in text,
+            "diagnostic_button":'setText("Copy diag JSON")' in text,
+            "diagnostic_privacy":"contains_source_text" in text and "contains_output_text" in text,
             "javascript_mode":"ENGINE_JS" in text,
             "product_label":"SIGMA Code Lab" in text,
           }

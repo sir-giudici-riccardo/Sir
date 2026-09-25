@@ -55,6 +55,7 @@ public final class MainActivity extends Activity {
     private Button modeButton;
     private Button themeButton;
     private Button symbolButton;
+    private Button diagnosticButton;
     private LinearLayout root;
     private LocalJavaScriptEngine jsEngine;
     private SymbolShortcutIndex symbolIndex;
@@ -64,6 +65,7 @@ public final class MainActivity extends Activity {
     private String currentEngine = ENGINE_SIGMA;
     private String currentTheme = THEME_SYSTEM;
     private String lastOutput = "";
+    private RunDiagnostic lastDiagnostic;
 
     private static final String[] SIGMA_EXAMPLES = new String[] {
             "# Arithmetic and variables\n"
@@ -127,6 +129,7 @@ public final class MainActivity extends Activity {
         configureSystemBars(dark);
 
         currentEngine = prefs.getString(KEY_ENGINE, ENGINE_SIGMA);
+        lastDiagnostic = RunDiagnostic.noRun("0.4.0-dev", currentTheme);
 
         root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -199,6 +202,14 @@ public final class MainActivity extends Activity {
 
         root.addView(row3);
 
+        LinearLayout row4 = new LinearLayout(this);
+        row4.setOrientation(LinearLayout.HORIZONTAL);
+
+        diagnosticButton = new Button(this);
+        diagnosticButton.setText("Copy diag JSON");
+        row4.addView(diagnosticButton, weighted());
+        root.addView(row4);
+
         editor = new EditText(this);
         editor.setTypeface(Typeface.MONOSPACE);
         editor.setTextSize(15f);
@@ -263,6 +274,7 @@ public final class MainActivity extends Activity {
         modeButton.setOnClickListener(v -> toggleEngine());
         themeButton.setOnClickListener(v -> cycleTheme());
         symbolButton.setOnClickListener(v -> insertSymbolShortcut());
+        diagnosticButton.setOnClickListener(v -> copyDiagnosticJson());
     }
 
     private void runCode() {
@@ -288,6 +300,14 @@ public final class MainActivity extends Activity {
                         + (result.output.isEmpty() ? "" : "\n")
                         + "[PASS] engine=SIGMA steps=" + result.steps
                         + " elapsed_ms=" + String.format(java.util.Locale.ROOT, "%.3f", ms);
+                lastDiagnostic = RunDiagnostic.sigma(
+                        "0.4.0-dev",
+                        currentTheme,
+                        true,
+                        result.elapsedNs,
+                        result.steps,
+                        source.length(),
+                        result.output.length());
                 lastOutput = text;
                 main.post(() -> output.setText(text));
             } catch (ScriptEngine.ScriptException e) {
@@ -295,11 +315,27 @@ public final class MainActivity extends Activity {
                 String text = "[STOPPED] engine=SIGMA " + e.getMessage()
                         + "\nelapsed_ms="
                         + String.format(java.util.Locale.ROOT, "%.3f", ms);
+                lastDiagnostic = RunDiagnostic.sigma(
+                        "0.4.0-dev",
+                        currentTheme,
+                        false,
+                        System.nanoTime() - started,
+                        -1L,
+                        source.length(),
+                        text.length());
                 lastOutput = text;
                 main.post(() -> output.setText(text));
             } catch (Throwable t) {
                 String text = "[FAIL_CLOSED] engine=SIGMA "
                         + t.getClass().getSimpleName() + ": " + t.getMessage();
+                lastDiagnostic = RunDiagnostic.sigma(
+                        "0.4.0-dev",
+                        currentTheme,
+                        false,
+                        System.nanoTime() - started,
+                        -1L,
+                        source.length(),
+                        text.length());
                 lastOutput = text;
                 main.post(() -> output.setText(text));
             } finally {
@@ -324,6 +360,14 @@ public final class MainActivity extends Activity {
                     .append(String.format(java.util.Locale.ROOT, "%.3f", ms));
 
             lastOutput = text.toString();
+            lastDiagnostic = RunDiagnostic.javascript(
+                    "0.4.0-dev",
+                    currentTheme,
+                    result.success,
+                    result.elapsedNs,
+                    result.provider,
+                    source.length(),
+                    result.output.length());
             output.setText(lastOutput);
             setRunning(false);
         });
@@ -344,6 +388,7 @@ public final class MainActivity extends Activity {
         modeButton.setEnabled(!running);
         themeButton.setEnabled(!running);
         symbolButton.setEnabled(!running && symbolIndex != null);
+        diagnosticButton.setEnabled(!running);
     }
 
     private void toggleEngine() {
@@ -406,7 +451,8 @@ public final class MainActivity extends Activity {
                 + "Functions: sqrt abs sin cos tan log exp floor ceil round pow min max clamp\n"
                 + "List/data: len str num type get set push pop range sum mean\n\n"
                 + "Execution limits: steps, loops, call depth, output and wall time.\n\n"
-                + "Editor symbol helper: select or place the cursor after a shortcut such as \\sum, then press SYMBOL.";
+                + "Editor symbol helper: select or place the cursor after a shortcut such as \\sum, then press SYMBOL.\n"
+                + "COPY DIAG JSON exports run metadata only; it does not include source or output text.";
         lastOutput = reference;
         output.setText(reference);
     }
@@ -425,7 +471,8 @@ public final class MainActivity extends Activity {
                 + "  no JavaScriptInterface bridge\n"
                 + "  5 s watchdog with renderer termination attempt\n\n"
                 + "This is an execution boundary, not a universal JavaScript sandbox proof.\n\n"
-                + "Editor symbol helper is independent of the JavaScript engine: select or place the cursor after a shortcut such as \\sum, then press SYMBOL.";
+                + "Editor symbol helper is independent of the JavaScript engine: select or place the cursor after a shortcut such as \\sum, then press SYMBOL.\n"
+                + "COPY DIAG JSON exports run metadata only; it does not include source or output text.";
         lastOutput = reference;
         output.setText(reference);
     }
@@ -480,6 +527,14 @@ public final class MainActivity extends Activity {
                 break;
         }
         output.setText(lastOutput);
+    }
+
+    private void copyDiagnosticJson() {
+        String json = lastDiagnostic == null
+                ? RunDiagnostic.noRun("0.4.0-dev", currentTheme).toJson()
+                : lastDiagnostic.toJson();
+        copy("SIGMA Code Lab diagnostic JSON", json);
+        output.setText("Diagnostic JSON copied. Source/output text are not included.");
     }
 
     private void cycleTheme() {

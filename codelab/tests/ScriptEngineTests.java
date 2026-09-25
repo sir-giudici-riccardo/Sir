@@ -1,5 +1,6 @@
 import org.sigma.codelab.RendererExitPolicy;
 import org.sigma.codelab.ScriptEngine;
+import org.sigma.codelab.RunDiagnostic;
 import org.sigma.codelab.SymbolEditHelper;
 import org.sigma.codelab.SymbolShortcutIndex;
 
@@ -144,6 +145,28 @@ public final class ScriptEngineTests {
                 "\\definitely_missing", 19, 19, symbols);
         check(missing.status == SymbolEditHelper.Status.NOT_FOUND,
                 "symbol_missing_fails_without_mutation");
+
+        String noRunJson = RunDiagnostic.noRun("0.4.0-dev", "SYSTEM").toJson();
+        check(noRunJson.contains("\"status\":\"NO_RUN\"")
+                        && noRunJson.contains("\"contains_source_text\":false"),
+                "diagnostic_no_run_schema");
+
+        String sigmaJson = RunDiagnostic.sigma(
+                "0.4.0-dev", "DARK", true, 2_500_000L, 23L, 123, 45).toJson();
+        check(sigmaJson.contains("\"engine\":\"SIGMA\"")
+                        && sigmaJson.contains("\"elapsed_ms\":2.500")
+                        && sigmaJson.contains("\"steps\":23")
+                        && sigmaJson.contains("\"source_chars\":123")
+                        && !sigmaJson.contains("secret source"),
+                "diagnostic_sigma_metadata_only");
+
+        String jsJson = RunDiagnostic.javascript(
+                "0.4.0-dev", "LIGHT", false, 70_125_000L,
+                "pkg \"dev\"\\provider", 20, 30).toJson();
+        check(jsJson.contains("\"engine\":\"JAVASCRIPT_WEBVIEW\"")
+                        && jsJson.contains("\"steps\":null")
+                        && jsJson.contains("pkg \\\"dev\\\"\\\\provider"),
+                "diagnostic_json_escaping");
 
         System.out.println("TOTAL_PASS=" + passed);
     }
