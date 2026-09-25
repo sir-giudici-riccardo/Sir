@@ -13,6 +13,7 @@ on:
       - "codelab/build.gradle"
       - "codelab/gradle.properties"
       - "codelab/release/**"
+      - "codelab/*.md"
   workflow_dispatch:
 
 permissions:
@@ -71,6 +72,10 @@ jobs:
             "root_requests_insets":"requestApplyInsets" in text,
             "horizontal_scroll_container":"HorizontalScrollView" in text,
             "editor_horizontal_scrolling":"setHorizontallyScrolling(true)" in text,
+            "engine_mode_selector":"Mode: " in text,
+            "theme_selector":"Theme: " in text,
+            "system_light_dark_modes":all(x in text for x in ['THEME_SYSTEM','THEME_LIGHT','THEME_DARK']),
+            "javascript_mode":"ENGINE_JS" in text,
             "product_label":"SIGMA Code Lab" in text,
           }
           result="PASS" if all(checks.values()) else "FAIL"

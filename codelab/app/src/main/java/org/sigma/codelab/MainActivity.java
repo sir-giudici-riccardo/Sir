@@ -5,6 +5,7 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.os.Bundle;
@@ -25,7 +26,19 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class MainActivity extends Activity {
     private static final String PREFS = "sigma_codelab";
-    private static final String KEY_SOURCE = "source";
+    private static final String LEGACY_KEY_SOURCE = "source";
+    private static final String KEY_SOURCE_SIGMA = "source_sigma";
+    private static final String KEY_SOURCE_JS = "source_js";
+    private static final String KEY_ENGINE = "engine";
+    private static final String KEY_THEME = "theme";
+
+    private static final String ENGINE_SIGMA = "SIGMA";
+    private static final String ENGINE_JS = "JAVASCRIPT";
+
+    private static final String THEME_SYSTEM = "SYSTEM";
+    private static final String THEME_LIGHT = "LIGHT";
+    private static final String THEME_DARK = "DARK";
+
     private static final ScriptEngine.Limits LIMITS =
             new ScriptEngine.Limits(500_000L, 65_536, 100_000L, 5_000L, 64);
 
@@ -37,27 +50,24 @@ public final class MainActivity extends Activity {
     private TextView output;
     private Button runButton;
     private Button stopButton;
-    private int exampleIndex = 0;
+    private Button modeButton;
+    private Button themeButton;
+    private LinearLayout root;
+    private LocalJavaScriptEngine jsEngine;
+
+    private int sigmaExampleIndex;
+    private int jsExampleIndex;
+    private String currentEngine = ENGINE_SIGMA;
+    private String currentTheme = THEME_SYSTEM;
     private String lastOutput = "";
 
-    private static final String[] EXAMPLES = new String[] {
+    private static final String[] SIGMA_EXAMPLES = new String[] {
             "# Arithmetic and variables\n"
                     + "let width = 12\n"
                     + "let height = 5\n"
                     + "let area = width * height\n"
                     + "print \"area = \" + area\n"
                     + "print \"diagonal = \" + sqrt(width * width + height * height)\n",
-
-            "# Conditions and loops\n"
-                    + "let total = 0\n"
-                    + "repeat 10 {\n"
-                    + "  total = total + 2\n"
-                    + "}\n"
-                    + "if total >= 20 {\n"
-                    + "  print \"target reached: \" + total\n"
-                    + "} else {\n"
-                    + "  print \"target not reached\"\n"
-                    + "}\n",
 
             "# Lists and aggregate functions\n"
                     + "let values = range(1, 6)\n"
@@ -68,12 +78,8 @@ public final class MainActivity extends Activity {
                     + "print \"mean = \" + mean(values)\n",
 
             "# User-defined functions\n"
-                    + "fn square(x) {\n"
-                    + "  return x * x\n"
-                    + "}\n"
-                    + "fn hypotenuse(a, b) {\n"
-                    + "  return sqrt(square(a) + square(b))\n"
-                    + "}\n"
+                    + "fn square(x) { return x * x }\n"
+                    + "fn hypotenuse(a, b) { return sqrt(square(a) + square(b)) }\n"
                     + "print hypotenuse(3, 4)\n",
 
             "# Bounded recursion\n"
@@ -84,15 +90,41 @@ public final class MainActivity extends Activity {
                     + "print fact(6)\n"
     };
 
+    private static final String[] JS_EXAMPLES = new String[] {
+            "const width = 12;\n"
+                    + "const height = 5;\n"
+                    + "const area = width * height;\n"
+                    + "console.log(\"area =\", area);\n"
+                    + "console.log(\"diagonal =\", Math.sqrt(width * width + height * height));\n",
+
+            "const values = [1, 2, 3, 4, 5];\n"
+                    + "values.push(10);\n"
+                    + "values[0] = 5;\n"
+                    + "const sum = values.reduce((a, b) => a + b, 0);\n"
+                    + "console.log(values);\n"
+                    + "console.log(\"sum =\", sum);\n"
+                    + "console.log(\"mean =\", sum / values.length);\n",
+
+            "function square(x) { return x * x; }\n"
+                    + "function hypotenuse(a, b) { return Math.sqrt(square(a) + square(b)); }\n"
+                    + "console.log(hypotenuse(3, 4));\n",
+
+            "function fact(n) { return n <= 1 ? 1 : n * fact(n - 1); }\n"
+                    + "console.log(fact(6));\n"
+    };
+
     @Override protected void onCreate(Bundle savedInstanceState) {
+        SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        currentTheme = prefs.getString(KEY_THEME, THEME_SYSTEM);
+        setTheme(resolveTheme(currentTheme));
         super.onCreate(savedInstanceState);
 
-        getWindow().setStatusBarColor(Color.WHITE);
-        getWindow().setNavigationBarColor(Color.WHITE);
-        getWindow().getDecorView().setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR);
+        boolean dark = isDarkActive(currentTheme);
+        configureSystemBars(dark);
 
-        LinearLayout root = new LinearLayout(this);
+        currentEngine = prefs.getString(KEY_ENGINE, ENGINE_SIGMA);
+
+        root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         int pad = dp(12);
         root.setPadding(pad, pad, pad, pad);
@@ -104,13 +136,13 @@ public final class MainActivity extends Activity {
         });
 
         TextView title = new TextView(this);
-        title.setText("SIGMA Code Lab 0.2.0 dev");
+        title.setText("SIGMA Code Lab 0.3.0 dev");
         title.setTextSize(20f);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         root.addView(title);
 
         TextView subtitle = new TextView(this);
-        subtitle.setText("Offline coding workspace • local deterministic scripts • no network permission");
+        subtitle.setText("Offline coding workspace • SIGMA Script + local JavaScript/WebView • no network permission");
         subtitle.setPadding(0, 0, 0, dp(8));
         root.addView(subtitle);
 
@@ -146,6 +178,17 @@ public final class MainActivity extends Activity {
         reference.setText("Reference");
         row2.addView(reference, weighted());
         root.addView(row2);
+
+        LinearLayout row3 = new LinearLayout(this);
+        row3.setOrientation(LinearLayout.HORIZONTAL);
+
+        modeButton = new Button(this);
+        row3.addView(modeButton, weighted());
+
+        themeButton = new Button(this);
+        row3.addView(themeButton, weighted());
+
+        root.addView(row3);
 
         editor = new EditText(this);
         editor.setTypeface(Typeface.MONOSPACE);
@@ -189,26 +232,42 @@ public final class MainActivity extends Activity {
         setContentView(root);
         root.requestApplyInsets();
 
-        SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
-        String saved = prefs.getString(KEY_SOURCE, null);
-        editor.setText(saved == null ? EXAMPLES[0] : saved);
+        jsEngine = new LocalJavaScriptEngine(this, root);
+
+        String sigmaSaved = prefs.getString(KEY_SOURCE_SIGMA, prefs.getString(LEGACY_KEY_SOURCE, null));
+        String jsSaved = prefs.getString(KEY_SOURCE_JS, null);
+        if (ENGINE_JS.equals(currentEngine)) {
+            editor.setText(jsSaved == null ? JS_EXAMPLES[0] : jsSaved);
+        } else {
+            editor.setText(sigmaSaved == null ? SIGMA_EXAMPLES[0] : sigmaSaved);
+        }
+        updateModeButton();
+        updateThemeButton();
 
         runButton.setOnClickListener(v -> runCode());
-        stopButton.setOnClickListener(v -> cancelRequested.set(true));
+        stopButton.setOnClickListener(v -> stopExecution());
         example.setOnClickListener(v -> loadNextExample());
         copyCode.setOnClickListener(v -> copy("SIGMA Code Lab source", editor.getText().toString()));
         copyOutput.setOnClickListener(v -> copy("SIGMA Code Lab output", lastOutput));
         reference.setOnClickListener(v -> showReference());
+        modeButton.setOnClickListener(v -> toggleEngine());
+        themeButton.setOnClickListener(v -> cycleTheme());
     }
 
     private void runCode() {
-        final String source = editor.getText().toString();
-        getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString(KEY_SOURCE, source).apply();
-
-        cancelRequested.set(false);
+        saveCurrentSource();
         setRunning(true);
         output.setText("Running…");
 
+        if (ENGINE_JS.equals(currentEngine)) {
+            runJavaScript(editor.getText().toString());
+        } else {
+            runSigma(editor.getText().toString());
+        }
+    }
+
+    private void runSigma(String source) {
+        cancelRequested.set(false);
         executor.submit(() -> {
             long started = System.nanoTime();
             try {
@@ -216,19 +275,20 @@ public final class MainActivity extends Activity {
                 double ms = result.elapsedNs / 1_000_000.0;
                 String text = result.output
                         + (result.output.isEmpty() ? "" : "\n")
-                        + "[PASS] steps=" + result.steps
-                        + "  elapsed_ms=" + String.format(java.util.Locale.ROOT, "%.3f", ms);
+                        + "[PASS] engine=SIGMA steps=" + result.steps
+                        + " elapsed_ms=" + String.format(java.util.Locale.ROOT, "%.3f", ms);
                 lastOutput = text;
                 main.post(() -> output.setText(text));
             } catch (ScriptEngine.ScriptException e) {
                 double ms = (System.nanoTime() - started) / 1_000_000.0;
-                String text = "[STOPPED] " + e.getMessage()
+                String text = "[STOPPED] engine=SIGMA " + e.getMessage()
                         + "\nelapsed_ms="
                         + String.format(java.util.Locale.ROOT, "%.3f", ms);
                 lastOutput = text;
                 main.post(() -> output.setText(text));
             } catch (Throwable t) {
-                String text = "[FAIL_CLOSED] " + t.getClass().getSimpleName() + ": " + t.getMessage();
+                String text = "[FAIL_CLOSED] engine=SIGMA "
+                        + t.getClass().getSimpleName() + ": " + t.getMessage();
                 lastOutput = text;
                 main.post(() -> output.setText(text));
             } finally {
@@ -237,47 +297,177 @@ public final class MainActivity extends Activity {
         });
     }
 
+    private void runJavaScript(String source) {
+        jsEngine.run(source, 5_000L, result -> {
+            double ms = result.elapsedNs / 1_000_000.0;
+            StringBuilder text = new StringBuilder();
+            if (!result.output.isEmpty()) text.append(result.output).append('\n');
+            if (result.success) {
+                if (result.value != null) text.append("=> ").append(result.value).append('\n');
+                text.append("[PASS] engine=JavaScript/WebView");
+            } else {
+                text.append("[STOPPED] engine=JavaScript/WebView ").append(result.error);
+            }
+            text.append("\nprovider=").append(result.provider);
+            text.append("\nelapsed_ms=")
+                    .append(String.format(java.util.Locale.ROOT, "%.3f", ms));
+
+            lastOutput = text.toString();
+            output.setText(lastOutput);
+            setRunning(false);
+        });
+    }
+
+    private void stopExecution() {
+        if (ENGINE_JS.equals(currentEngine)) {
+            jsEngine.cancel();
+        } else {
+            cancelRequested.set(true);
+        }
+    }
+
     private void setRunning(boolean running) {
         runButton.setEnabled(!running);
         stopButton.setEnabled(running);
         editor.setEnabled(!running);
+        modeButton.setEnabled(!running);
+        themeButton.setEnabled(!running);
+    }
+
+    private void toggleEngine() {
+        saveCurrentSource();
+        SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+
+        if (ENGINE_SIGMA.equals(currentEngine)) {
+            currentEngine = ENGINE_JS;
+            String saved = prefs.getString(KEY_SOURCE_JS, null);
+            editor.setText(saved == null ? JS_EXAMPLES[0] : saved);
+        } else {
+            currentEngine = ENGINE_SIGMA;
+            String saved = prefs.getString(
+                    KEY_SOURCE_SIGMA,
+                    prefs.getString(LEGACY_KEY_SOURCE, null));
+            editor.setText(saved == null ? SIGMA_EXAMPLES[0] : saved);
+        }
+
+        prefs.edit().putString(KEY_ENGINE, currentEngine).apply();
+        editor.setSelection(editor.getText().length());
+        updateModeButton();
+        output.setText("Engine mode: " + currentEngine);
     }
 
     private void loadNextExample() {
-        exampleIndex = (exampleIndex + 1) % EXAMPLES.length;
-        editor.setText(EXAMPLES[exampleIndex]);
+        String[] examples;
+        int index;
+
+        if (ENGINE_JS.equals(currentEngine)) {
+            jsExampleIndex = (jsExampleIndex + 1) % JS_EXAMPLES.length;
+            examples = JS_EXAMPLES;
+            index = jsExampleIndex;
+        } else {
+            sigmaExampleIndex = (sigmaExampleIndex + 1) % SIGMA_EXAMPLES.length;
+            examples = SIGMA_EXAMPLES;
+            index = sigmaExampleIndex;
+        }
+
+        editor.setText(examples[index]);
         editor.setSelection(editor.getText().length());
-        output.setText("Example " + (exampleIndex + 1) + " loaded.");
+        output.setText("Example " + (index + 1) + " loaded for " + currentEngine + ".");
     }
 
     private void showReference() {
+        if (ENGINE_JS.equals(currentEngine)) {
+            showJavaScriptReference();
+        } else {
+            showSigmaReference();
+        }
+    }
+
+    private void showSigmaReference() {
         String reference =
                 "SIGMA Script 0.2\n\n"
-                + "Statements:\n"
-                + "  let x = 10\n"
-                + "  x = x + 1\n"
-                + "  print x\n"
-                + "  if condition { ... } else { ... }\n"
-                + "  repeat 10 { ... }\n"
-                + "  while condition { ... }\n"
-                + "  fn name(a, b) { return a + b }\n"
-                + "  return value\n\n"
+                + "Statements: let, assignment, print, if/else, repeat, while, fn, return\n"
                 + "Values: numbers, strings, booleans, lists\n"
-                + "Lists: [1, 2, 3]\n"
                 + "Logic: and, or, not\n"
                 + "Operators: + - * / % == != < <= > >=\n"
                 + "Constants: pi, e\n"
-                + "Numeric/string functions:\n"
-                + "  sqrt abs sin cos tan log exp\n"
-                + "  floor ceil round pow min max clamp\n"
-                + "  len str num type\n"
-                + "List functions:\n"
-                + "  get set push pop range sum mean\n\n"
-                + "Functions use local variable scope. Recursion is bounded by call depth.\n"
-                + "Comments: # text   or   // text\n\n"
-                + "Execution limits are enforced for steps, loops, function depth, output and wall time.";
+                + "Functions: sqrt abs sin cos tan log exp floor ceil round pow min max clamp\n"
+                + "List/data: len str num type get set push pop range sum mean\n\n"
+                + "Execution limits: steps, loops, call depth, output and wall time.";
         lastOutput = reference;
         output.setText(reference);
+    }
+
+    private void showJavaScriptReference() {
+        String reference =
+                "Local JavaScript/WebView mode\n\n"
+                + "Use standard JavaScript syntax and console.log(...) for output.\n"
+                + "The current WebView provider is shown after each run.\n\n"
+                + "Containment contract:\n"
+                + "  no Android INTERNET permission\n"
+                + "  WebView network loads blocked\n"
+                + "  file/content access disabled\n"
+                + "  DOM storage/database/geolocation disabled\n"
+                + "  external navigation blocked\n"
+                + "  no JavaScriptInterface bridge\n"
+                + "  5 s watchdog with renderer termination attempt\n\n"
+                + "This is an execution boundary, not a universal JavaScript sandbox proof.";
+        lastOutput = reference;
+        output.setText(reference);
+    }
+
+    private void cycleTheme() {
+        saveCurrentSource();
+        if (THEME_SYSTEM.equals(currentTheme)) currentTheme = THEME_LIGHT;
+        else if (THEME_LIGHT.equals(currentTheme)) currentTheme = THEME_DARK;
+        else currentTheme = THEME_SYSTEM;
+
+        getSharedPreferences(PREFS, MODE_PRIVATE)
+                .edit()
+                .putString(KEY_THEME, currentTheme)
+                .apply();
+        recreate();
+    }
+
+    private void updateModeButton() {
+        modeButton.setText("Mode: " + (ENGINE_JS.equals(currentEngine) ? "JS" : "SIGMA"));
+    }
+
+    private void updateThemeButton() {
+        themeButton.setText("Theme: " + currentTheme);
+    }
+
+    private void saveCurrentSource() {
+        if (editor == null) return;
+        String key = ENGINE_JS.equals(currentEngine) ? KEY_SOURCE_JS : KEY_SOURCE_SIGMA;
+        getSharedPreferences(PREFS, MODE_PRIVATE)
+                .edit()
+                .putString(key, editor.getText().toString())
+                .apply();
+    }
+
+    private int resolveTheme(String theme) {
+        boolean dark = isDarkActive(theme);
+        return dark
+                ? android.R.style.Theme_Material_NoActionBar
+                : android.R.style.Theme_Material_Light_NoActionBar;
+    }
+
+    private boolean isDarkActive(String theme) {
+        if (THEME_DARK.equals(theme)) return true;
+        if (THEME_LIGHT.equals(theme)) return false;
+        int mask = getResources().getConfiguration().uiMode & Configuration.UI_MODE_NIGHT_MASK;
+        return mask == Configuration.UI_MODE_NIGHT_YES;
+    }
+
+    private void configureSystemBars(boolean dark) {
+        getWindow().setStatusBarColor(dark ? Color.BLACK : Color.WHITE);
+        getWindow().setNavigationBarColor(dark ? Color.BLACK : Color.WHITE);
+        int flags = 0;
+        if (!dark) {
+            flags = View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR | View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+        }
+        getWindow().getDecorView().setSystemUiVisibility(flags);
     }
 
     private void copy(String label, String text) {
@@ -294,15 +484,13 @@ public final class MainActivity extends Activity {
     }
 
     @Override protected void onPause() {
-        getSharedPreferences(PREFS, MODE_PRIVATE)
-                .edit()
-                .putString(KEY_SOURCE, editor.getText().toString())
-                .apply();
+        saveCurrentSource();
         super.onPause();
     }
 
     @Override protected void onDestroy() {
         cancelRequested.set(true);
+        if (jsEngine != null) jsEngine.destroy();
         executor.shutdownNow();
         super.onDestroy();
     }
