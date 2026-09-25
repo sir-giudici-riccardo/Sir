@@ -1,0 +1,33 @@
+{
+  "object": "SIGMA_CODE_LAB_0.1.1_UX_CANDIDATE",
+  "state": "FROZEN_TESTED_CI / SIDE_BY_SIDE_DEVICE_CANDIDATE / REAL_DEVICE_VALIDATION_PENDING",
+  "parent_release": "sigma-codelab-v0.1.0",
+  "branch": "sigma/coding-workspace-v0.1.1",
+  "commit": "37bfa4138a66dc5d56aaf1cd6155f56e21436721",
+  "github_actions_run": 36127642318,
+  "package": "org.sigma.codelab.dev",
+  "versionName": "0.1.1-dev",
+  "versionCode": 2,
+  "changes": [
+    "Android system-bar inset handling",
+    "horizontal code scrolling / no forced long-line wrap",
+    "side-by-side development package"
+  ],
+  "interpreter_semantics": "UNCHANGED_FROM_0.1.0",
+  "validation": {
+    "interpreter_tests": "20/20 PASS",
+    "manifest_audit": "PASS",
+    "source_audit": "PASS",
+    "ui_hotfix_audit": "PASS",
+    "apk_build": "PASS",
+    "declared_permissions": [],
+    "apk_signature": "v2 PASS",
+    "apk_sha256": "32300430b02898b83e75a5356fd917cb9767e632c49c6b161930b227940d0cda",
+    "artifact_zip_sha256": "b833183c4732fddc61f38c43925d686fdb771b5b11a81812aa27002f41d7b4cd"
+  },
+  "boundaries": [
+    "CI_UI_HOTFIX_AUDIT != REAL_DEVICE_LAYOUT_CONFIRMATION",
+    "DEV_PACKAGE != PUBLIC_RELEASE",
+    "INTERPRETER_UNCHANGED != COMPLETE_REGRESSION_PROOF"
+  ]
+}
