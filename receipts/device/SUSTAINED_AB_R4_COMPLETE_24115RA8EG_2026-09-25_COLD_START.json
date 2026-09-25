@@ -1,0 +1,121 @@
+{
+  "object": "SIGMA_TASK4_MOBILE_ARM_R1_SUSTAINED_AB_R4_COLD_START",
+  "device_model_code": "24115RA8EG",
+  "source_state": "MEASURED_ON_DEVICE / USER_RETURNED_APP_JSON / COMPLETE",
+  "timestamp_utc": "2026-09-25T10:34:54.235405Z",
+  "environment": {
+    "android_version": "16",
+    "sdk_int": 36,
+    "security_patch": "2026-08-01",
+    "kernel_version": "6.1.138-android14-11-g0c3d559bcd85-ab14529422",
+    "cold_start_battery_temperature_c": 30.7,
+    "sustained_baseline_battery_temperature_c": 31.7,
+    "thermal_status": "NONE",
+    "cpus_allowed_list": "0-7",
+    "effective_cpu_limit": 8
+  },
+  "bounded_sweep_cold_start": {
+    "calibrated_iterations_per_worker": 200000000,
+    "groups": {
+      "1": {
+        "median_ops_s": 337440559.14953464,
+        "median_wall_ns": 592696979
+      },
+      "2": {
+        "median_ops_s": 652822079.5081346,
+        "median_wall_ns": 612724374
+      },
+      "4": {
+        "median_ops_s": 883363471.9650767,
+        "median_wall_ns": 905629478
+      },
+      "6": {
+        "median_ops_s": 1300645727.4656034,
+        "median_wall_ns": 922618646
+      },
+      "8": {
+        "median_ops_s": 1908765485.8322814,
+        "median_wall_ns": 838238124
+      }
+    }
+  },
+  "sustained_ab": {
+    "status": "COMPLETE",
+    "sequence": [
+      4,
+      8,
+      4,
+      8
+    ],
+    "block_compute_target_ns": 12000000000,
+    "recovery_ms": 8000,
+    "blocks": [
+      {
+        "workers": 4,
+        "aggregate_ops_s": 1124373719.5597978,
+        "compute_wall_ns": 12095622446,
+        "cpu_to_compute_wall_ratio": 3.4563964102422515,
+        "rounds": 17
+      },
+      {
+        "workers": 8,
+        "aggregate_ops_s": 1833868721.250243,
+        "compute_wall_ns": 12214614787,
+        "cpu_to_compute_wall_ratio": 7.312847193271049,
+        "rounds": 14
+      },
+      {
+        "workers": 4,
+        "aggregate_ops_s": 1035880212.8217969,
+        "compute_wall_ns": 12356641088,
+        "cpu_to_compute_wall_ratio": 3.319954324629486,
+        "rounds": 16
+      },
+      {
+        "workers": 8,
+        "aggregate_ops_s": 1702179170.413491,
+        "compute_wall_ns": 12219630202,
+        "cpu_to_compute_wall_ratio": 6.666343042006894,
+        "rounds": 13
+      }
+    ],
+    "derived": {
+      "median_4_worker_ops_s": 1080126966.1907973,
+      "median_8_worker_ops_s": 1768023945.831867,
+      "throughput_ratio_8_vs_4": 1.6368667769373673,
+      "throughput_gain_percent_8_vs_4": 63.686677693736726,
+      "per_worker_efficiency_ratio_8_vs_4": 0.8184333884686836,
+      "pair_ratio_first": 1.6310135049832175,
+      "pair_ratio_second": 1.6432200840835232,
+      "block_degradation_4_percent": -7.87047092959865,
+      "block_degradation_8_percent": -7.180969352428479,
+      "median_cpu_to_wall_ratio_4": 3.388175367435869,
+      "median_cpu_to_wall_ratio_8": 6.989595117638972
+    }
+  },
+  "comparison_to_prior_warm_run": {
+    "note": "Prior comparison run used security patch 2026-06-01 and warmer battery state; not a software-identical replication.",
+    "prior_warm_sweep_ops_s": {
+      "1": 257986330.06694722,
+      "2": 519286914.142292,
+      "4": 1034661102.4584867,
+      "6": 1117072531.984751,
+      "8": 1271726193.6809466
+    },
+    "cold_over_warm_ratio": {
+      "1": 1.3079784462299577,
+      "2": 1.2571510310179934,
+      "4": 0.8537708336247419,
+      "6": 1.1643341772576665,
+      "8": 1.5009248809348317
+    }
+  },
+  "boundaries": [
+    "COLD_START_RESULT != THERMAL_CAUSAL_ISOLATION",
+    "SECURITY_PATCH_2026_08_01 != PRIOR_2026_06_01_SOFTWARE_STATE",
+    "BATTERY_TEMPERATURE != CPU_DIE_TEMPERATURE",
+    "THERMAL_STATUS_NONE != NO_DVFS_OR_THROTTLING",
+    "8_WORKER_MAX_THROUGHPUT != MAX_ENERGY_EFFICIENCY",
+    "SINGLE_DEVICE_SINGLE_KERNEL != GENERAL_SMARTPHONE_RESULT"
+  ]
+}
