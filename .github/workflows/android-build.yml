@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - sigma/mobile-arm-r1-circleci
+    paths:
+      - ".github/workflows/android-build.yml"
+      - "source/**"
+      - "scripts/**"
+      - "tests/**"
   workflow_dispatch:
 
 permissions:
