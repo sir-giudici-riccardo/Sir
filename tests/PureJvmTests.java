@@ -1,6 +1,7 @@
 import org.sigma.mobileprobe.BenchmarkEngine;
 import org.sigma.mobileprobe.CpuParsers;
 import org.sigma.mobileprobe.Stats;
+import org.sigma.mobileprobe.SustainedAccumulator;
 
 import java.util.Arrays;
 
@@ -31,6 +32,15 @@ public final class PureJvmTests {
             check(a.observedThreads == 2 && b.observedThreads == 2, "benchmark_observed_threads");
             c1 = a.checksum;
             c2 = b.checksum;
+
+            SustainedAccumulator acc = new SustainedAccumulator();
+            acc.add(a);
+            acc.add(b);
+            check(acc.rounds() == 2, "sustained_round_accounting");
+            check(acc.totalOperations() == 200_000L, "sustained_operation_accounting");
+            check(acc.computeWallNs() > 0 && acc.aggregateOperationsPerSecond() > 0.0, "sustained_throughput_positive");
+            check(acc.checksumConsistent() && acc.observedThreadsMin() == 2 && acc.observedThreadsMax() == 2,
+                    "sustained_checksum_and_threads");
         }
         check(c1 == c2, "benchmark_deterministic_checksum");
 
