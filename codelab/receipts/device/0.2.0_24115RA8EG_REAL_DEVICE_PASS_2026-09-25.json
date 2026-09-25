@@ -1,0 +1,46 @@
+{
+  "object": "SIGMA_CODE_LAB_0.2.0_DEV_REAL_DEVICE_VALIDATION",
+  "device_model_code": "24115RA8EG",
+  "source_state": "USER_RETURNED_OUTPUT / REAL_DEVICE_FUNCTIONAL_PASS",
+  "observed_tests": [
+    {
+      "name": "arithmetic_variables_math",
+      "output": [
+        "area = 60",
+        "diagonal = 13"
+      ],
+      "steps": 23,
+      "elapsed_ms": 2.9,
+      "status": "PASS"
+    },
+    {
+      "name": "lists_aggregates_run_1",
+      "output": [
+        "[5, 2, 3, 4, 5, 10]",
+        "sum = 29",
+        "mean = 4.833333333333333"
+      ],
+      "steps": 42,
+      "elapsed_ms": 8.67,
+      "status": "PASS"
+    },
+    {
+      "name": "lists_aggregates_run_2",
+      "output": [
+        "[5, 2, 3, 4, 5, 10]",
+        "sum = 29",
+        "mean = 4.833333333333333"
+      ],
+      "steps": 42,
+      "elapsed_ms": 2.34,
+      "status": "PASS"
+    }
+  ],
+  "reference_screen": "SIGMA Script 0.2 reference visible and consistent",
+  "conclusion": "NO_INTERPRETER_FAILURE_OBSERVED_IN_RETURNED_0.2.0_DEVICE_TESTS",
+  "boundaries": [
+    "RETURNED_EXAMPLES_PASS != COMPLETE_LANGUAGE_VALIDATION",
+    "ELAPSED_MS != PERFORMANCE_BENCHMARK",
+    "DEV_PACKAGE != IN_PLACE_UPDATE_LINEAGE"
+  ]
+}
