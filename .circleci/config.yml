@@ -1,0 +1,65 @@
+version: 2.1
+
+jobs:
+  verify-and-build-apk:
+    docker:
+      - image: cimg/android:2026.08
+    resource_class: medium
+    steps:
+      - checkout
+      - run:
+          name: Toolchain receipt
+          command: |
+            set -euo pipefail
+            mkdir -p receipts/circleci
+            {
+              echo "JAVA"
+              java -version 2>&1
+              echo "GRADLE"
+              gradle --version
+              echo "ANDROID_HOME=${ANDROID_HOME:-UNSET}"
+              echo "ANDROID_SDK_ROOT=${ANDROID_SDK_ROOT:-UNSET}"
+            } | tee receipts/circleci/TOOLCHAIN.txt
+      - run:
+          name: Pure JVM regression tests
+          command: |
+            set -euo pipefail
+            bash tests/run_jvm_tests.sh | tee receipts/circleci/JVM_TEST_OUTPUT.txt
+      - run:
+          name: Offline-by-design source audits
+          command: |
+            set -euo pipefail
+            python3 scripts/audit_manifest.py | tee receipts/circleci/MANIFEST_AUDIT.json
+            python3 scripts/audit_source.py | tee receipts/circleci/SOURCE_AUDIT.json
+      - run:
+          name: Assemble unsigned debug APK
+          command: |
+            set -euo pipefail
+            cd source
+            gradle --no-daemon --stacktrace :app:assembleDebug
+      - run:
+          name: APK permission and hash audit
+          command: |
+            set -euo pipefail
+            mkdir -p receipts/circleci
+            APK="source/app/build/outputs/apk/debug/app-debug.apk"
+            test -f "$APK"
+            sha256sum "$APK" | tee receipts/circleci/APK_SHA256.txt
+            AAPT2="$(find "${ANDROID_HOME:-${ANDROID_SDK_ROOT}}/build-tools" -type f -name aapt2 | sort -V | tail -n 1)"
+            test -x "$AAPT2"
+            "$AAPT2" dump permissions "$APK" | tee receipts/circleci/APK_PERMISSIONS.txt
+            if grep -q 'uses-permission' receipts/circleci/APK_PERMISSIONS.txt; then
+              echo "Unexpected APK permission declaration" >&2
+              exit 1
+            fi
+      - store_artifacts:
+          path: source/app/build/outputs/apk/debug/app-debug.apk
+          destination: sigma-mobile-probe-debug.apk
+      - store_artifacts:
+          path: receipts/circleci
+          destination: receipts
+
+workflows:
+  build-mobile-probe:
+    jobs:
+      - verify-and-build-apk
