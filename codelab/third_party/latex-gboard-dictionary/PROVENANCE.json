@@ -1,0 +1,13 @@
+{
+  "object": "LATEX_GBOARD_DICTIONARY_IMPORTED_ASSET",
+  "source": "user-supplied dictionary.txt corresponding to DenverCoder1/latex-gboard-dictionary",
+  "source_license": "MIT",
+  "copyright": "Copyright (c) 2020 Jonah Lawrence",
+  "imported_sha256": "1860d8ac9f095b7f7f8a408cf69a96d2807897d37cde10887de6b223f8b1992d",
+  "mapping_rows": 1210,
+  "unique_shortcuts": 1200,
+  "ambiguous_shortcuts": 9,
+  "integration": "EDITOR_ASSISTANCE_DATA_ONLY",
+  "parser_integration": false,
+  "automatic_replacement": false
+}

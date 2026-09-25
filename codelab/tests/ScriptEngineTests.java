@@ -1,5 +1,12 @@
 import org.sigma.codelab.RendererExitPolicy;
 import org.sigma.codelab.ScriptEngine;
+import org.sigma.codelab.SymbolEditHelper;
+import org.sigma.codelab.SymbolShortcutIndex;
+
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 public final class ScriptEngineTests {
     private static int passed = 0;
@@ -103,6 +110,40 @@ public final class ScriptEngineTests {
                 "renderer_exit_killed_classification");
         check(RendererExitPolicy.message(true, 2).contains("execution failed closed"),
                 "renderer_exit_fail_closed_message");
+
+        check(args.length == 1, "symbol_asset_path_supplied");
+        SymbolShortcutIndex symbols;
+        try (InputStreamReader reader = new InputStreamReader(
+                Files.newInputStream(Path.of(args[0])),
+                StandardCharsets.UTF_8)) {
+            symbols = SymbolShortcutIndex.load(reader);
+        }
+        check(symbols.mappingCount() == 1210, "symbol_mapping_count");
+        check(symbols.shortcutCount() == 1200, "symbol_unique_shortcut_count");
+        check(symbols.ambiguousShortcutCount() == 9, "symbol_ambiguous_shortcut_count");
+        check(symbols.candidates("\\sum").equals(java.util.List.of("∑")),
+                "symbol_sum_lookup");
+        check(symbols.candidates("\\phi").size() == 2,
+                "symbol_phi_ambiguity_preserved");
+
+        SymbolEditHelper.Result replace = SymbolEditHelper.resolve(
+                "print \\sum", 10, 10, symbols);
+        check(replace.status == SymbolEditHelper.Status.REPLACE
+                        && replace.start == 6
+                        && replace.end == 10
+                        && replace.replacement.equals("∑"),
+                "symbol_token_at_cursor_replace");
+
+        SymbolEditHelper.Result ambiguous = SymbolEditHelper.resolve(
+                "\\phi", 0, 4, symbols);
+        check(ambiguous.status == SymbolEditHelper.Status.AMBIGUOUS
+                        && ambiguous.candidates.size() == 2,
+                "symbol_ambiguous_no_auto_choice");
+
+        SymbolEditHelper.Result missing = SymbolEditHelper.resolve(
+                "\\definitely_missing", 19, 19, symbols);
+        check(missing.status == SymbolEditHelper.Status.NOT_FOUND,
+                "symbol_missing_fails_without_mutation");
 
         System.out.println("TOTAL_PASS=" + passed);
     }

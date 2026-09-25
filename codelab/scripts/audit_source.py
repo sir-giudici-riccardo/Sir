@@ -15,6 +15,8 @@ ordinary_text = "\n".join(
 js_text = js_engine_path.read_text(encoding="utf-8") if js_engine_path.exists() else ""
 all_text = ordinary_text + "\n" + js_text
 gradle = (root / "app/build.gradle").read_text(encoding="utf-8")
+symbol_asset = root / "app/src/main/assets/latex_gboard_dictionary.txt"
+symbol_license = root / "app/src/main/assets/third_party/latex_gboard_dictionary_LICENSE.txt"
 
 ordinary_forbidden = {
     "java_net": "java.net.",
@@ -75,6 +77,12 @@ checks = {
     "javascript_engine_hardening_complete": not js_required_missing,
     "javascript_engine_forbidden_paths_absent": not js_forbidden_hits,
     "renderer_exit_policy_present": "class RendererExitPolicy" in ordinary_text,
+    "symbol_index_present": "class SymbolShortcutIndex" in ordinary_text,
+    "symbol_helper_present": "class SymbolEditHelper" in ordinary_text,
+    "symbol_asset_present": symbol_asset.exists(),
+    "symbol_third_party_license_present": symbol_license.exists(),
+    "symbol_helper_is_explicit_action": 'setText("Symbol")' in ordinary_text
+        and "insertSymbolShortcut()" in ordinary_text,
     "dependencies_block_empty": body == "",
     "bounded_sigma_engine_limits_present": all(
         x in all_text for x in ["maxSteps", "maxOutputChars", "maxLoopIterations", "deadlineMs"]

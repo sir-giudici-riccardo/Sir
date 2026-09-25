@@ -20,6 +20,8 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -52,8 +54,10 @@ public final class MainActivity extends Activity {
     private Button stopButton;
     private Button modeButton;
     private Button themeButton;
+    private Button symbolButton;
     private LinearLayout root;
     private LocalJavaScriptEngine jsEngine;
+    private SymbolShortcutIndex symbolIndex;
 
     private int sigmaExampleIndex;
     private int jsExampleIndex;
@@ -136,7 +140,7 @@ public final class MainActivity extends Activity {
         });
 
         TextView title = new TextView(this);
-        title.setText("SIGMA Code Lab 0.3.0 dev");
+        title.setText("SIGMA Code Lab 0.4.0 dev");
         title.setTextSize(20f);
         title.setTypeface(Typeface.DEFAULT_BOLD);
         root.addView(title);
@@ -188,6 +192,11 @@ public final class MainActivity extends Activity {
         themeButton = new Button(this);
         row3.addView(themeButton, weighted());
 
+        symbolButton = new Button(this);
+        symbolButton.setText("Symbol");
+        symbolButton.setEnabled(false);
+        row3.addView(symbolButton, weighted());
+
         root.addView(row3);
 
         editor = new EditText(this);
@@ -233,6 +242,7 @@ public final class MainActivity extends Activity {
         root.requestApplyInsets();
 
         jsEngine = new LocalJavaScriptEngine(this, root);
+        loadSymbolIndex();
 
         String sigmaSaved = prefs.getString(KEY_SOURCE_SIGMA, prefs.getString(LEGACY_KEY_SOURCE, null));
         String jsSaved = prefs.getString(KEY_SOURCE_JS, null);
@@ -252,6 +262,7 @@ public final class MainActivity extends Activity {
         reference.setOnClickListener(v -> showReference());
         modeButton.setOnClickListener(v -> toggleEngine());
         themeButton.setOnClickListener(v -> cycleTheme());
+        symbolButton.setOnClickListener(v -> insertSymbolShortcut());
     }
 
     private void runCode() {
@@ -332,6 +343,7 @@ public final class MainActivity extends Activity {
         editor.setEnabled(!running);
         modeButton.setEnabled(!running);
         themeButton.setEnabled(!running);
+        symbolButton.setEnabled(!running && symbolIndex != null);
     }
 
     private void toggleEngine() {
@@ -393,7 +405,8 @@ public final class MainActivity extends Activity {
                 + "Constants: pi, e\n"
                 + "Functions: sqrt abs sin cos tan log exp floor ceil round pow min max clamp\n"
                 + "List/data: len str num type get set push pop range sum mean\n\n"
-                + "Execution limits: steps, loops, call depth, output and wall time.";
+                + "Execution limits: steps, loops, call depth, output and wall time.\n\n"
+                + "Editor symbol helper: select or place the cursor after a shortcut such as \\sum, then press SYMBOL.";
         lastOutput = reference;
         output.setText(reference);
     }
@@ -411,9 +424,62 @@ public final class MainActivity extends Activity {
                 + "  external navigation blocked\n"
                 + "  no JavaScriptInterface bridge\n"
                 + "  5 s watchdog with renderer termination attempt\n\n"
-                + "This is an execution boundary, not a universal JavaScript sandbox proof.";
+                + "This is an execution boundary, not a universal JavaScript sandbox proof.\n\n"
+                + "Editor symbol helper is independent of the JavaScript engine: select or place the cursor after a shortcut such as \\sum, then press SYMBOL.";
         lastOutput = reference;
         output.setText(reference);
+    }
+
+    private void loadSymbolIndex() {
+        try (InputStreamReader reader = new InputStreamReader(
+                getAssets().open("latex_gboard_dictionary.txt"),
+                StandardCharsets.UTF_8)) {
+            symbolIndex = SymbolShortcutIndex.load(reader);
+            symbolButton.setEnabled(true);
+        } catch (Throwable t) {
+            symbolIndex = null;
+            symbolButton.setEnabled(false);
+            lastOutput = "[FAIL_CLOSED] symbol index unavailable: "
+                    + t.getClass().getSimpleName();
+            output.setText(lastOutput);
+        }
+    }
+
+    private void insertSymbolShortcut() {
+        if (symbolIndex == null) {
+            lastOutput = "[FAIL_CLOSED] symbol index unavailable";
+            output.setText(lastOutput);
+            return;
+        }
+
+        int selectionStart = Math.max(0, editor.getSelectionStart());
+        int selectionEnd = Math.max(0, editor.getSelectionEnd());
+        SymbolEditHelper.Result result = SymbolEditHelper.resolve(
+                editor.getText().toString(),
+                selectionStart,
+                selectionEnd,
+                symbolIndex);
+
+        switch (result.status) {
+            case REPLACE:
+                editor.getText().replace(result.start, result.end, result.replacement);
+                editor.setSelection(result.start + result.replacement.length());
+                lastOutput = "Symbol: " + result.token + " → " + result.replacement;
+                break;
+            case AMBIGUOUS:
+                lastOutput = "Ambiguous symbol shortcut: " + result.token
+                        + "\nCandidates: " + String.join("  ", result.candidates)
+                        + "\nNo replacement was made.";
+                break;
+            case NOT_FOUND:
+                lastOutput = "No symbol shortcut found for: " + result.token;
+                break;
+            default:
+                lastOutput = "Place the cursor after a shortcut (for example \\sum) "
+                        + "or select a shortcut, then press SYMBOL.";
+                break;
+        }
+        output.setText(lastOutput);
     }
 
     private void cycleTheme() {
