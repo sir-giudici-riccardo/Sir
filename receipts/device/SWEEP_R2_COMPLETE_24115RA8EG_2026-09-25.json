@@ -1,0 +1,112 @@
+{
+  "object": "SIGMA_TASK4_MOBILE_ARM_R1_SWEEP_COMPLETE",
+  "device_model_code": "24115RA8EG",
+  "source_state": "MEASURED_ON_DEVICE / USER_RETURNED_APP_JSON / COMPLETE_SUMMARY_CAPTURE",
+  "sweep_schema": "SIGMA_MOBILE_SWEEP_R2",
+  "summary_schema": "SIGMA_MOBILE_SWEEP_SUMMARY_R1",
+  "observations": {
+    "cpuset_dynamic": [
+      {
+        "snapshot": "manual_probe_pre_sweep",
+        "cpus_allowed_list": "4-7",
+        "effective_cpu_limit": 4
+      },
+      {
+        "snapshot": "sweep_internal_probe",
+        "cpus_allowed_list": "0-7",
+        "effective_cpu_limit": 8
+      },
+      {
+        "snapshot": "later_manual_probe",
+        "cpus_allowed_list": "4-7",
+        "effective_cpu_limit": 4
+      },
+      {
+        "snapshot": "later_sweep_internal_probe",
+        "cpus_allowed_list": "0-7",
+        "effective_cpu_limit": 8
+      }
+    ],
+    "invariant": "CPUS_ALLOWED_LIST_IS_DYNAMIC_STATE != STATIC_DEVICE_CONSTRAINT"
+  },
+  "primary_complete_run": {
+    "timestamp_utc": "2026-09-25T07:26:46.462971Z",
+    "calibrated_iterations_per_worker": 197748000,
+    "thermal_status_max": 0,
+    "battery_temperature_c": 38.7,
+    "groups": [
+      {
+        "workers": 1,
+        "median_wall_time_ns": 766505729,
+        "median_ops_s": 257986330.06694722,
+        "median_worker_cpu_time_ns": 760411212,
+        "checksum": "17741870183068870055"
+      },
+      {
+        "workers": 2,
+        "median_wall_time_ns": 761613646,
+        "median_ops_s": 519286914.142292,
+        "median_worker_cpu_time_ns": 1510796262,
+        "checksum": "573749381959781564"
+      },
+      {
+        "workers": 4,
+        "median_wall_time_ns": 764493802,
+        "median_ops_s": 1034661102.4584867,
+        "median_worker_cpu_time_ns": 3014557605,
+        "checksum": "13278945833258937202"
+      },
+      {
+        "workers": 6,
+        "median_wall_time_ns": 1062140520,
+        "median_ops_s": 1117072531.984751,
+        "median_worker_cpu_time_ns": 5087984583,
+        "checksum": "15170582396074226376"
+      },
+      {
+        "workers": 8,
+        "median_wall_time_ns": 1243965885,
+        "median_ops_s": 1271726193.6809466,
+        "median_worker_cpu_time_ns": 7465822360,
+        "checksum": "5814210786018426425"
+      }
+    ],
+    "derived": {
+      "speedup_vs_1_worker": {
+        "2": 2.012846626437678,
+        "4": 4.010526845317708,
+        "6": 4.329967916109632,
+        "8": 4.9294324755537815
+      },
+      "parallel_efficiency_vs_ideal": {
+        "2": 1.006423313218839,
+        "4": 1.002631711329427,
+        "6": 0.7216613193516053,
+        "8": 0.6161790594442227
+      },
+      "throughput_gain_4_to_8_percent": 22.91234208565134,
+      "interpretation": "4 workers = local efficiency knee in this run; 8 workers = highest measured absolute throughput"
+    }
+  },
+  "secondary_complete_run": {
+    "timestamp_utc": "2026-09-25T07:24:26.962385Z",
+    "calibrated_iterations_per_worker": 83527000,
+    "note": "Complete summary available, but 1-worker median wall 483.4 ms is slightly below intended 0.5 s lower bound; retain as corroborating run, not primary sustained run.",
+    "groups_median_ops_s": {
+      "1": 172784487.72903606,
+      "2": 295952180.46003,
+      "4": 470836592.188612,
+      "6": 571091635.6756166,
+      "8": 638184976.164147
+    }
+  },
+  "boundaries": [
+    "CPUS_ALLOWED_LIST_IS_DYNAMIC_STATE != STATIC_DEVICE_CONSTRAINT",
+    "4_WORKER_EFFICIENCY_KNEE != UNIVERSAL_OPTIMUM",
+    "8_WORKER_MAX_THROUGHPUT_THIS_RUN != MAX_ENERGY_EFFICIENCY",
+    "THERMAL_STATUS_NONE != NO_DVFS_OR_THROTTLING",
+    "SCALING_MAX_FREQ_SNAPSHOT != ACTUAL_PER_THREAD_EXECUTION_FREQUENCY",
+    "SINGLE_DEVICE_RESULT != GENERAL_SMARTPHONE_PERFORMANCE",
+    "JAVA_THREAD_BENCHMARK != R4_PROCESS_CONTAINMENT_VALIDATION"
+  ]
+}
