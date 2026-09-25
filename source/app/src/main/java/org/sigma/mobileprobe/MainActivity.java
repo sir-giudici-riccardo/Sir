@@ -30,7 +30,9 @@ public final class MainActivity extends Activity {
     private TextView output;
     private Button sweepButton;
     private Button stopButton;
+    private Button summaryButton;
     private volatile String lastJson = "{}";
+    private volatile String lastSummaryJson = "{}";
 
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -44,8 +46,13 @@ public final class MainActivity extends Activity {
         root.addView(probe);
 
         Button copy = new Button(this);
-        copy.setText("Copy JSON");
+        copy.setText("Copy full JSON");
         root.addView(copy);
+
+        summaryButton = new Button(this);
+        summaryButton.setText("Copy compact summary");
+        summaryButton.setEnabled(false);
+        root.addView(summaryButton);
 
         sweepButton = new Button(this);
         sweepButton.setText("2 — Run bounded parallelism sweep");
@@ -68,6 +75,7 @@ public final class MainActivity extends Activity {
 
         probe.setOnClickListener(v -> runProbe());
         copy.setOnClickListener(v -> copyJson());
+        summaryButton.setOnClickListener(v -> copySummary());
         sweepButton.setOnClickListener(v -> runSweep());
         stopButton.setOnClickListener(v -> stopRequested.set(true));
         output.setText("Run the read-only probe first. No benchmark starts automatically.");
@@ -97,6 +105,7 @@ public final class MainActivity extends Activity {
     private void runSweep() {
         stopRequested.set(false);
         sweepButton.setEnabled(false);
+        summaryButton.setEnabled(false);
         stopButton.setEnabled(true);
         setOutput("Running bounded sweep…\nUse Stop at any time.");
         controlExecutor.submit(() -> {
@@ -178,7 +187,9 @@ public final class MainActivity extends Activity {
                 result.put("groups", groups);
                 result.put("user_stop_requested", stopRequested.get());
                 lastJson = result.toString(2);
+                lastSummaryJson = buildCompactSummary(result).toString(2);
                 setOutput(lastJson);
+                mainHandler.post(() -> summaryButton.setEnabled(true));
             } catch (Exception e) {
                 setOutput("FAIL_CLOSED: " + e);
             } finally {
@@ -227,9 +238,110 @@ public final class MainActivity extends Activity {
         }
     }
 
+    private JSONObject buildCompactSummary(JSONObject result) throws Exception {
+        JSONObject summary = new JSONObject();
+        summary.put("schema_version", "SIGMA_MOBILE_SWEEP_SUMMARY_R1");
+        summary.put("timestamp_utc", result.getString("timestamp_utc"));
+
+        JSONObject probe = result.getJSONObject("probe");
+        summary.put("device_model_code", probe.optString("device_model_code", "unknown"));
+        summary.put("architecture", probe.optString("architecture", "unknown"));
+        summary.put("cpus_allowed_list", probe.opt("cpus_allowed_list"));
+        summary.put("effective_cpu_limit", probe.getInt("effective_cpu_limit"));
+        summary.put("calibrated_iterations_per_worker", result.getLong("calibrated_iterations_per_worker"));
+        summary.put("expected_trials_per_level", result.getInt("measured_trials_per_level"));
+        summary.put("user_stop_requested", result.getBoolean("user_stop_requested"));
+
+        JSONArray compactGroups = new JSONArray();
+        JSONArray groups = result.getJSONArray("groups");
+        for (int gi = 0; gi < groups.length(); gi++) {
+            JSONObject group = groups.getJSONObject(gi);
+            JSONArray trials = group.getJSONArray("trials");
+            int n = trials.length();
+
+            JSONObject out = new JSONObject();
+            out.put("requested_workers", group.getInt("requested_workers"));
+            out.put("effective_workers", group.getInt("effective_workers"));
+            out.put("completed_trials", n);
+            out.put("group_complete", n == result.getInt("measured_trials_per_level"));
+            if (group.has("aborted")) out.put("aborted", group.get("aborted"));
+
+            if (n > 0) {
+                long[] wall = new long[n];
+                double[] ops = new double[n];
+                long[] cpu = new long[n];
+                boolean cpuKnown = true;
+                String firstChecksum = null;
+                boolean checksumConsistent = true;
+                int observedThreadsMin = Integer.MAX_VALUE;
+                int observedThreadsMax = Integer.MIN_VALUE;
+                int maxThermal = Integer.MIN_VALUE;
+                double minBatteryTemp = Double.POSITIVE_INFINITY;
+                double maxBatteryTemp = Double.NEGATIVE_INFINITY;
+
+                for (int i = 0; i < n; i++) {
+                    JSONObject t = trials.getJSONObject(i);
+                    wall[i] = t.getLong("wall_time_ns");
+                    ops[i] = t.getDouble("operations_per_second");
+                    if (t.isNull("worker_cpu_time_ns")) {
+                        cpuKnown = false;
+                    } else {
+                        cpu[i] = t.getLong("worker_cpu_time_ns");
+                    }
+
+                    String checksum = t.getString("checksum");
+                    if (firstChecksum == null) firstChecksum = checksum;
+                    else if (!firstChecksum.equals(checksum)) checksumConsistent = false;
+
+                    int observed = t.getInt("observed_threads");
+                    observedThreadsMin = Math.min(observedThreadsMin, observed);
+                    observedThreadsMax = Math.max(observedThreadsMax, observed);
+
+                    int tb = t.getJSONObject("thermal_before").getInt("status_code");
+                    int ta = t.getJSONObject("thermal_after").getInt("status_code");
+                    maxThermal = Math.max(maxThermal, Math.max(tb, ta));
+
+                    Object btb = t.getJSONObject("battery_before").opt("temperature_c");
+                    Object bta = t.getJSONObject("battery_after").opt("temperature_c");
+                    if (btb instanceof Number) {
+                        double v = ((Number) btb).doubleValue();
+                        minBatteryTemp = Math.min(minBatteryTemp, v);
+                        maxBatteryTemp = Math.max(maxBatteryTemp, v);
+                    }
+                    if (bta instanceof Number) {
+                        double v = ((Number) bta).doubleValue();
+                        minBatteryTemp = Math.min(minBatteryTemp, v);
+                        maxBatteryTemp = Math.max(maxBatteryTemp, v);
+                    }
+                }
+
+                out.put("median_wall_time_ns", Stats.median(wall));
+                out.put("median_operations_per_second", Stats.median(ops));
+                out.put("median_worker_cpu_time_ns", cpuKnown ? Stats.median(cpu) : JSONObject.NULL);
+                out.put("checksum_consistent", checksumConsistent);
+                out.put("checksum", firstChecksum == null ? JSONObject.NULL : firstChecksum);
+                out.put("observed_threads_min", observedThreadsMin);
+                out.put("observed_threads_max", observedThreadsMax);
+                out.put("max_thermal_status_code", maxThermal);
+                out.put("battery_temperature_min_c",
+                        Double.isFinite(minBatteryTemp) ? minBatteryTemp : JSONObject.NULL);
+                out.put("battery_temperature_max_c",
+                        Double.isFinite(maxBatteryTemp) ? maxBatteryTemp : JSONObject.NULL);
+            }
+            compactGroups.put(out);
+        }
+        summary.put("groups", compactGroups);
+        return summary;
+    }
+
     private void copyJson() {
         ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
         cm.setPrimaryClip(ClipData.newPlainText("SIGMA Mobile JSON", lastJson));
+    }
+
+    private void copySummary() {
+        ClipboardManager cm = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+        cm.setPrimaryClip(ClipData.newPlainText("SIGMA Mobile Summary", lastSummaryJson));
     }
 
     private void setOutput(String text) {
