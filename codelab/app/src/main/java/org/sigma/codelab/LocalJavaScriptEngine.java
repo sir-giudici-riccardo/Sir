@@ -61,7 +61,7 @@ public final class LocalJavaScriptEngine {
     }
 
     public void run(String source, long timeoutMs, Callback callback) {
-        if (source == null) source = "";
+        final String code = source == null ? "" : source;
         if (timeoutMs < 1) throw new IllegalArgumentException("timeoutMs must be positive");
 
         cancelInternal(false, false);
@@ -109,7 +109,7 @@ public final class LocalJavaScriptEngine {
             public void onPageFinished(WebView view, String url) {
                 if (!finished && !evaluationStarted && "about:blank".equals(url)) {
                     evaluationStarted = true;
-                    evaluate(view, source);
+                    evaluate(view, code);
                 }
             }
         });
