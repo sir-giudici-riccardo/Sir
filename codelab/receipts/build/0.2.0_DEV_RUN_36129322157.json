@@ -1,0 +1,38 @@
+{
+  "object": "SIGMA_CODE_LAB_0.2.0_DEV",
+  "state": "FROZEN_TESTED_CI / DEVICE_CANDIDATE / REAL_DEVICE_VALIDATION_PENDING",
+  "branch": "sigma/coding-workspace-v0.2.0-dev",
+  "commit": "cf14c2810e17fad591e55c23e8c42bbd1cc4dfe4",
+  "github_actions_run": 36129322157,
+  "package": "org.sigma.codelab.dev",
+  "versionName": "0.2.0-dev",
+  "versionCode": 3,
+  "changes": [
+    "list literals",
+    "list get/set/push/pop",
+    "range/sum/mean",
+    "user-defined functions",
+    "return statements",
+    "bounded recursion",
+    "function-local variable restoration",
+    "updated examples/reference"
+  ],
+  "validation": {
+    "local_jvm_tests": "37/37 PASS",
+    "github_jvm_tests": "37/37 PASS",
+    "manifest_audit": "PASS",
+    "source_audit": "PASS",
+    "ui_audit": "PASS",
+    "apk_build": "PASS",
+    "declared_permissions": [],
+    "apk_signature": "v2 development signature PASS",
+    "apk_sha256": "ef96c4f7797b787789ed2935e7fe85bddd85c4b9f1f1b8bca9ccbe6dc7764312",
+    "artifact_zip_sha256": "ba994c9d795bf1c078e02dfc8225b571ba97349a608f606dfa6e08dc466b242e"
+  },
+  "boundaries": [
+    "DEV_APK != PUBLIC_STABLE_RELEASE",
+    "37_TESTS_PASS != COMPLETE_LANGUAGE_CORRECTNESS_PROOF",
+    "USER_FUNCTION_SCOPE_IS_CURRENT_0.2_SEMANTICS_AND_MAY_EVOLVE_WITH_VERSIONING",
+    "DEVELOPMENT_SIGNATURE != STABLE_UPDATE_SIGNATURE"
+  ]
+}
