@@ -1,0 +1,14 @@
+{
+  "object": "SIGMA_TASK4_MOBILE_ARM_R1",
+  "device_model_code": "24115RA8EG",
+  "soc_user_reported": "Snapdragon 7s Gen 3 Mobile Platform",
+  "cpu_user_reported": "Octa-core Max 2.5GHz",
+  "ram_ui_label_user_reported": "12.0+8.0 GB",
+  "android_version_user_reported": "16 BP2A.250605.031.A3",
+  "security_patch_user_reported": "2026-06-01",
+  "kernel_user_reported": "6.1.138-android14-11-g0c3d559bcd85-ab14529422",
+  "storage_total_ui_user_reported": "512 GB",
+  "storage_available_ui_user_reported": "355.1 GB",
+  "epistemic_state": "DEVICE_CANDIDATE / SCREENSHOT_DERIVED / RUNTIME_PROBE_PENDING",
+  "note": "The 12.0+8.0 GB UI label is preserved verbatim and is not interpreted as physical RAM plus swap until runtime probe evidence is available."
+}
