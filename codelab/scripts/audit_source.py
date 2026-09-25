@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from pathlib import Path
-import json, re, sys
+import hashlib, json, re, sys
 
 root = Path(__file__).resolve().parents[1]
 java_root = root / "app/src/main/java"
@@ -80,6 +80,9 @@ checks = {
     "symbol_index_present": "class SymbolShortcutIndex" in ordinary_text,
     "symbol_helper_present": "class SymbolEditHelper" in ordinary_text,
     "symbol_asset_present": symbol_asset.exists(),
+    "symbol_asset_sha256_matches_source": symbol_asset.exists()
+        and hashlib.sha256(symbol_asset.read_bytes()).hexdigest()
+        == "1860d8ac9f095b7f7f8a408cf69a96d2807897d37cde10887de6b223f8b1992d",
     "symbol_third_party_license_present": symbol_license.exists(),
     "symbol_helper_is_explicit_action": 'setText("Symbol")' in ordinary_text
         and "insertSymbolShortcut()" in ordinary_text,
