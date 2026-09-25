@@ -2,6 +2,11 @@ plugins {
     id "com.android.application"
 }
 
+def releaseKeystorePath = System.getenv("CODELAB_KEYSTORE_PATH")
+def releaseKeystorePassword = System.getenv("CODELAB_KEYSTORE_PASSWORD")
+def releaseKeyAlias = System.getenv("CODELAB_KEY_ALIAS")
+def releaseKeyPassword = System.getenv("CODELAB_KEY_PASSWORD")
+
 android {
     namespace "org.sigma.codelab"
     compileSdk 35
@@ -14,6 +19,18 @@ android {
         versionName "0.1.1"
     }
 
+    signingConfigs {
+        if (releaseKeystorePath && releaseKeystorePassword && releaseKeyAlias && releaseKeyPassword) {
+            release {
+                storeFile file(releaseKeystorePath)
+                storePassword releaseKeystorePassword
+                keyAlias releaseKeyAlias
+                keyPassword releaseKeyPassword
+                storeType "PKCS12"
+            }
+        }
+    }
+
     buildTypes {
         debug {
             minifyEnabled false
@@ -22,6 +39,9 @@ android {
         }
         release {
             minifyEnabled false
+            if (signingConfigs.findByName("release") != null) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 

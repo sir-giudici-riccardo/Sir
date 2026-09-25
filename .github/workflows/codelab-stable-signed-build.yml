@@ -1,0 +1,121 @@
+name: SIGMA Code Lab Stable Signed Build
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  signed-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      EXPECTED_CERT_SHA256: "5A:A7:93:D3:2E:25:99:DB:52:C6:2A:47:98:5B:7D:1B:F3:02:1D:7B:C2:A2:C5:D3:A9:19:D5:81:85:95:65:86"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Require signing secrets
+        shell: bash
+        env:
+          KS_B64: ${{ secrets.CODELAB_KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.CODELAB_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.CODELAB_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.CODELAB_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$KS_B64"
+          test -n "$KS_PASS"
+          test -n "$KEY_ALIAS"
+          test -n "$KEY_PASS"
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: platform-tools
+
+      - name: Set up Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Ensure Android SDK 35
+        shell: bash
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Restore private keystore
+        shell: bash
+        env:
+          KS_B64: ${{ secrets.CODELAB_KEYSTORE_B64 }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/codelab-signing"
+          printf '%s' "$KS_B64" | base64 --decode > "$RUNNER_TEMP/codelab-signing/release.p12"
+          chmod 600 "$RUNNER_TEMP/codelab-signing/release.p12"
+
+      - name: Re-run tests and audits
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash codelab/tests/run_jvm_tests.sh
+          python3 codelab/scripts/audit_manifest.py
+          python3 codelab/scripts/audit_source.py
+
+      - name: Build signed release APK
+        working-directory: codelab
+        env:
+          CODELAB_KEYSTORE_PATH: ${{ runner.temp }}/codelab-signing/release.p12
+          CODELAB_KEYSTORE_PASSWORD: ${{ secrets.CODELAB_KEYSTORE_PASSWORD }}
+          CODELAB_KEY_ALIAS: ${{ secrets.CODELAB_KEY_ALIAS }}
+          CODELAB_KEY_PASSWORD: ${{ secrets.CODELAB_KEY_PASSWORD }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle --no-daemon --stacktrace :app:assembleRelease
+
+      - name: Verify package, permissions and signer
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="codelab/app/build/outputs/apk/release/app-release.apk"
+          test -f "$APK"
+          AAPT2="$(find "${ANDROID_HOME}/build-tools" -type f -name aapt2 | sort -V | tail -n 1)"
+          APKSIGNER="$(find "${ANDROID_HOME}/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+
+          "$AAPT2" dump permissions "$APK" | tee APK_PERMISSIONS.txt
+          ! grep -q 'uses-permission' APK_PERMISSIONS.txt
+
+          "$AAPT2" dump badging "$APK" | tee APK_BADGING.txt
+          grep -q "package: name='org.sigma.codelab'" APK_BADGING.txt
+
+          "$APKSIGNER" verify --verbose --print-certs "$APK" | tee APK_SIGNATURE.txt
+          actual="$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' APK_SIGNATURE.txt | head -1 | tr '[:lower:]' '[:upper:]')"
+          expected="$(printf '%s' "$EXPECTED_CERT_SHA256" | tr -d ':')"
+          test "$actual" = "$expected"
+
+          sha256sum "$APK" | tee APK_SHA256.txt
+          mkdir -p dist
+          cp "$APK" dist/SIGMA-Code-Lab-STABLE-SIGNED.apk
+
+      - name: Upload signed candidate
+        uses: actions/upload-artifact@v4
+        with:
+          name: sigma-code-lab-stable-signed-candidate
+          if-no-files-found: error
+          retention-days: 30
+          path: |
+            dist/SIGMA-Code-Lab-STABLE-SIGNED.apk
+            APK_SHA256.txt
+            APK_SIGNATURE.txt
+            APK_PERMISSIONS.txt
+            APK_BADGING.txt
