@@ -1,0 +1,30 @@
+{
+  "object": "SIGMA_CODE_LAB_0.4_GATE1_RENDERER_DEATH_CONTAINMENT",
+  "state": "FROZEN_TESTED_CI / CODE_LEVEL_AND_BUILD_PASS / REAL_RENDERER_DEATH_TEST_PENDING",
+  "source_parent_real_device_pass": "3c620400cdace27f5b415545612681c0d19552a2",
+  "implementation_commit": "50b7c60c80991236c6656456fa8ef5314b495d32",
+  "github_actions_run": 36134702407,
+  "validation": {
+    "jvm_tests": "40/40 PASS",
+    "source_audit": "PASS",
+    "manifest_audit": "PASS",
+    "ui_audit": "PASS",
+    "android_build": "PASS",
+    "apk_audit": "PASS",
+    "declared_permissions": [],
+    "package": "org.sigma.codelab.dev"
+  },
+  "delta": [
+    "explicit WebViewClient.onRenderProcessGone handling",
+    "renderer crash vs killed classification",
+    "active JavaScript run fails closed on renderer loss",
+    "dead WebView cleanup",
+    "host signals renderer-loss handled by returning true",
+    "pure-Java RendererExitPolicy tests"
+  ],
+  "boundaries": [
+    "CI_PASS != ACTUAL_RENDERER_CRASH_REPRODUCTION",
+    "RENDERER_LOSS_HANDLER_PRESENT != UNIVERSAL_WEBVIEW_STABILITY",
+    "0.3.0_REAL_DEVICE_PASS_REMAINS_UNCHANGED"
+  ]
+}
