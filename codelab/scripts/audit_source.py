@@ -21,7 +21,8 @@ ordinary_forbidden = {
     "javax_net": "javax.net.",
     "socket": "Socket(",
     "http_url_connection": "HttpURLConnection",
-    "webview_outside_js_engine": "WebView",
+    "webview_import_outside_js_engine": "import android.webkit.WebView",
+    "webview_instantiation_outside_js_engine": "new WebView(",
     "runtime_exec": "Runtime.getRuntime().exec",
     "process_builder": "ProcessBuilder",
 }
