@@ -75,6 +75,10 @@ jobs:
             echo "Unexpected APK permission declaration" >&2
             exit 1
           fi
+          APKSIGNER="$(find "${ANDROID_HOME}/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
+          test -x "$APKSIGNER"
+          "$APKSIGNER" verify --verbose --print-certs "$APK" | tee receipts/github-actions/APK_SIGNATURE.txt
+          "$AAPT2" dump badging "$APK" | tee receipts/github-actions/APK_BADGING.txt
 
       - name: Upload APK and receipts
         uses: actions/upload-artifact@v4
@@ -85,3 +89,5 @@ jobs:
             source/app/build/outputs/apk/debug/app-debug.apk
             receipts/github-actions/APK_SHA256.txt
             receipts/github-actions/APK_PERMISSIONS.txt
+            receipts/github-actions/APK_SIGNATURE.txt
+            receipts/github-actions/APK_BADGING.txt
