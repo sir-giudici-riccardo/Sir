@@ -1,0 +1,63 @@
+{
+  "object": "SIGMA_TASK4_MOBILE_ARM_R1_DEVICE_PROBE",
+  "timestamp_utc": "2026-09-25T07:04:06.579404Z",
+  "source_state": "MEASURED_ON_DEVICE / USER_RETURNED_APP_JSON",
+  "device_model_code": "24115RA8EG",
+  "manufacturer": "Xiaomi",
+  "architecture": "arm64-v8a",
+  "android_version": "16",
+  "sdk_int": 36,
+  "kernel_version": "6.1.138-android14-11-g0c3d559bcd85-ab14529422",
+  "logical_cpus_runtime": 8,
+  "cpu_present": "0-7",
+  "cpu_online": "0-7",
+  "cpus_allowed_list": "4-7",
+  "cpu_allowed_count": 4,
+  "effective_cpu_limit": 4,
+  "cgroup_cpu_quota": "UNREADABLE_OR_ABSENT",
+  "cpu_frequency_clusters_observed": {
+    "cpu0-3": {
+      "cpuinfo_max_freq_khz": "1804800"
+    },
+    "cpu4-6": {
+      "cpuinfo_max_freq_khz": "2400000"
+    },
+    "cpu7": {
+      "cpuinfo_max_freq_khz": "2496000"
+    }
+  },
+  "memory": {
+    "android_total_mem_bytes": 11909500928,
+    "android_avail_mem_bytes": 3651932160,
+    "proc_memtotal_kib": "11630372",
+    "proc_swaptotal_kib": "12582908",
+    "proc_swapfree_kib": "5906120",
+    "runtime_max_memory_bytes": 268435456
+  },
+  "thermal": {
+    "status_code": 0,
+    "status": "NONE"
+  },
+  "battery": {
+    "temperature_c": 35.2,
+    "level_percent": 59,
+    "status_code": 3
+  },
+  "sandbox": {
+    "type": "ANDROID_UID_SANDBOX",
+    "requested_permissions": [],
+    "internet_permission_declared": false,
+    "isolation_contract_pass": true
+  },
+  "boundaries": [
+    "CPUSET_ALLOWED_4_7 != PHYSICAL_CPU_COUNT_4",
+    "CGROUP_CPU_QUOTA_UNREADABLE != NO_CPU_QUOTA_EXISTS",
+    "ANDROID_TOTAL_MEM != UI_MEMORY_EXTENSION_DECOMPOSITION",
+    "SWAPTOTAL != VERIFIED_UI_MEMORY_EXTENSION",
+    "MEASURED_ON_DEVICE != GENERAL_SMARTPHONE_PERFORMANCE"
+  ],
+  "sweep_r1_capture_status": "PARTIAL_CHAT_CAPTURE / NOT_FROZEN_AS_COMPLETE",
+  "sweep_r1_known_issue": "CALIBRATION_UNDER_TARGET: 4,000,000 iterations produced ~12-16 ms 1-worker trials, below intended 0.5-2.0 s window",
+  "corrective_branch_commit": "469a09d82ac7774776c9f7478df4c8931f096640",
+  "corrective_apk_version": "0.1.1-r2"
+}
