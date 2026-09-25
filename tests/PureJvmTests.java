@@ -1,5 +1,6 @@
 import org.sigma.mobileprobe.BenchmarkEngine;
 import org.sigma.mobileprobe.CpuParsers;
+import org.sigma.mobileprobe.Stats;
 
 import java.util.Arrays;
 
@@ -17,6 +18,9 @@ public final class PureJvmTests {
         check(Math.abs(CpuParsers.parseCpuMaxCores("400000 100000") - 4.0) < 1e-12, "cpu_max_parse");
         check(CpuParsers.parseCpuMaxCores("max 100000") == null, "cpu_max_unlimited");
         check(CpuParsers.effectiveCpuLimit(8, 6, 4.9) == 4, "effective_cpu_limit");
+        check(Stats.median(new long[]{5,1,3}) == 3L, "median_long_odd");
+        check(Stats.median(new long[]{10,2,6,4}) == 5L, "median_long_even");
+        check(Math.abs(Stats.median(new double[]{1.0,4.0,2.0,3.0}) - 2.5) < 1e-12, "median_double_even");
 
         long c1;
         long c2;
