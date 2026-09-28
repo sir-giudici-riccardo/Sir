@@ -1,4 +1,6 @@
-# SIGMA Task4 Mobile ARM R1 — Claim Boundaries
+# SIGMA Code Lab — Claim Boundaries
+
+## Existing mobile/ARM boundaries
 
 - `ANDROID_APPLICATION_SANDBOX != R4_SECCOMP_CELL`
 - `ANDROID_UID_ISOLATION != PER_WORKER_PRIVILEGE_ISOLATION`
@@ -13,3 +15,23 @@
 - `NO_INTERNET_PERMISSION != UNIVERSAL_PROOF_OF_NO_SIDE_CHANNEL`
 
 The benchmark uses Java threads inside one Android application UID. It measures bounded compute scaling and runtime-visible telemetry only. It is not a device safety certification, a thermal characterization of the SoC, or a validation of R4 on Android.
+
+## Δ Hybrid Operator Lab boundaries
+
+- `DELTA_HYBRID2_TYPED_VIEW_V1 != NEW_CANONICAL_PROJECT`
+- `OPERATOR_LAB != SIGMA_LANGUAGE_SEMANTICS`
+- `HYBRID_DEPTH<=2 != UNIVERSAL_COMPOSITION_CLOSURE`
+- `FINITE_FIXTURE != LIMIT_THEOREM`
+- `FINITE_EXHAUSTIVE_ENVELOPE != ALL_FORMULAS`
+- `0_MINUS / 0_PLUS = ONE_SIDED_LIMIT_LABELS, NOT NEW SCALARS`
+- `PLUS/MINUS_INFINITY = LIMIT_REGIMES, NOT FINITE_EXPONENT_VALUES`
+- `Qp_TOPOLOGY != ARCHIMEDEAN_ORDER`
+- `FINITE_FIELD_POWER/FROBENIUS != REAL_RADIAL_DYNAMICS`
+- `H = NONCOMMUTATIVE_DIVISION_ALGEBRA; QUATERNION_ORDER_MUST_BE_PRESERVED`
+- `HYPERREAL/SURREAL_SYMBOLIC != NATIVE_MACHINE_ARITHMETIC`
+- `EXACT_Q_MATRIX_CHECK != PHYSICAL_VALIDATION`
+- `TEST_PASS != THEOREM_PROOF`
+- `VALIDATION_TRANSFER = NONE`
+- `NO_NEW_FIELD_CLAIM`
+
+The Δ lab is additive and fail-closed. Unsupported domain/operator pairs are retained as symbolic contracts or rejected; they are never silently coerced to binary64 or to real/complex semantics.
